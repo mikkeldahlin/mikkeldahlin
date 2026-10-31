@@ -328,13 +328,14 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .rc0{fill:var(--reg-0)}.rc1{fill:var(--reg-1)}.rc2{fill:var(--reg-2)}.rc3{fill:var(--reg-3)}.rc4{fill:var(--reg-4)}
 .rc5{fill:var(--reg-5)}.rc6{fill:var(--reg-6)}.rc7{fill:var(--reg-7)}.rc8{fill:var(--reg-8)}
 .reg-pt.nomap{fill-opacity:.4}
-.reg-pt:hover{filter:brightness(1.25) saturate(1.1)}
-.reg-pt:focus{outline:none}
-.reg-pt:focus-visible{stroke:var(--box-line);stroke-width:2.5}
-.reg-inner{fill:none;stroke:var(--map-bg);stroke-opacity:.45;stroke-width:1;pointer-events:none}
+.reg-blk{cursor:pointer}
+.reg-blk:focus{outline:none}
+.reg-blk:hover .reg-pt,.reg-blk:hover image{filter:brightness(1.22) saturate(1.1)}
+.reg-blk.has-img .reg-pt{fill-opacity:.35}
+.reg-fo{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:square;pointer-events:none}
 .reg-edge{fill:none;stroke:var(--map-bg);stroke-width:3.2;stroke-linecap:square;pointer-events:none}
 .reg-wsel{fill:none;stroke:var(--box-line);stroke-width:2.2;stroke-linecap:square;pointer-events:none}
-.reg-csel{fill:none;stroke:var(--box-hot);stroke-width:3;pointer-events:none}
+.reg-csel{fill:none;stroke:var(--box-hot);stroke-width:3;stroke-linecap:square;pointer-events:none}
 .reg-heal circle{fill:var(--m4-bg);stroke:var(--map-bg);stroke-width:1}
 .reg-heal path{stroke:var(--m4-fg);stroke-width:1.6;fill:none}
 .reg-gl{pointer-events:none}
@@ -1223,9 +1224,10 @@ function cellStats(ps){
 const statTitle=s=>[s.wild&&s.wild+' wild species',s.tr&&s.tr+' trainers',s.gyms&&s.gyms+' gym leaders, bosses or rivals',(s.fields||[]).length?'field: '+s.fields.join(', '):s.field?'field: '+s.field:'',s.items&&s.items+' items',s.tms&&s.tms+' TMs or HMs'].filter(Boolean).join(', ');
 const statStr=s=>[s.wild&&s.wild+'w',s.tr&&s.tr+'t',s.gyms&&'★'+(s.gyms>1?s.gyms:''),((s.fields||[]).length||s.field)&&'◆',s.items&&s.items+'i',s.tms&&s.tms+'TM'].filter(Boolean).join(' ');
 
-/* region grid model: wards, colours, edges */
+/* region grid model: wards, colours, blocks (stitched composites and merged places), edges */
 const RC=32,RP=6,REG_N=9;
 const kxy=k=>k.split(',').map(Number);
+const byYX=(a,b)=>{const [ax,ay]=kxy(a),[bx,by]=kxy(b);return ay-by||ax-bx};
 function regModel(rm){
   if(MP.reg&&MP.reg.rm===rm)return MP.reg;
   const pts=rm.points||[];
@@ -1240,18 +1242,53 @@ function regModel(rm){
     const bad=new Set([...w.adj].map(n=>wards.get(n).color));let best=-1;
     for(let c=0;c<REG_N;c++)if(!bad.has(c)&&(best<0||used[c]<used[best]))best=c;
     if(best<0)best=w.cells.length%REG_N;w.color=best;used[best]++});
-  wards.forEach(w=>{const xy=w.cells.map(kxy);w.cx=(xy.reduce((s,c)=>s+c[0],0)/xy.length+.5)*RC;w.cy=(xy.reduce((s,c)=>s+c[1],0)/xy.length+.5)*RC;
-    w.span=(Math.max(...xy.map(c=>c[0]))-Math.min(...xy.map(c=>c[0]))+1)*RC});
-  return MP.reg={rm,W,H,cells,wards,nameAt};
+  const R={rm,W,H,cells,wards,nameAt};regBlocks(R);
+  return MP.reg=R;
 }
+/* Blocks: each grid cell belongs to exactly one block.
+   1. A stitched composite (regionmap.stitched[].gridPoints) claims its cells. Outdoor composites go first, larger first;
+      composites with the same cell set are variants of one block (Neo versions, map-range splits); an indoor composite
+      only claims a cell whose place has its exact name, so cave floors don't swallow the town above them.
+   2. The remaining cells merge into places: 4-connected runs of cells with the same name. */
+function regBlocks(R){
+  const rm=R.rm,owner=new Map(),blocks=[],comps=[],bySet=new Map();
+  (rm.stitched||[]).forEach((s,i)=>{const ks=[...new Set((s.gridPoints||[]).map(p=>p[0]+','+p[1]))].filter(k=>R.cells.has(k)).sort();if(!ks.length)return;
+    const key=ks.join(';'),o=bySet.get(key);if(o){o.alts.push(s);return}const c={s,i,ks,alts:[]};bySet.set(key,c);comps.push(c)});
+  comps.sort((a,b)=>(!!b.s.outdoor-!!a.s.outdoor)||b.ks.length-a.ks.length||a.i-b.i).forEach(c=>{
+    const ks=c.ks.filter(k=>!owner.has(k)&&(c.s.outdoor||R.nameAt(k)===c.s.name));if(!ks.length)return;
+    const b={kind:'st',st:c.s,alts:c.alts,cells:ks,name:c.s.name};ks.forEach(k=>owner.set(k,b));blocks.push(b)});
+  [...R.cells.keys()].sort(byYX).forEach(k=>{if(owner.has(k))return;const n=R.nameAt(k),b={kind:'pl',name:n,cells:[],alts:[]};blocks.push(b);owner.set(k,b);
+    const q=[k];while(q.length){const c=q.pop();b.cells.push(c);const [x,y]=kxy(c);
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const o=(x+dx)+','+(y+dy);if(R.cells.has(o)&&!owner.has(o)&&R.nameAt(o)===n){owner.set(o,b);q.push(o)}})}});
+  blocks.forEach((b,i)=>{
+    b.i=i;b.cells.sort(byYX);b.k=b.cells[0];b.pts=b.cells.flatMap(k=>R.cells.get(k));
+    const cnt=new Map();b.cells.forEach(k=>{const n=R.nameAt(k);cnt.set(n,(cnt.get(n)||0)+1)});
+    b.ward=[...cnt].sort((x,y)=>y[1]-x[1])[0][0];b.color=R.wards.get(b.ward).color;
+    const xy=b.cells.map(kxy),xs=xy.map(c=>c[0]),ys=xy.map(c=>c[1]);
+    b.x0=Math.min(...xs);b.x1=Math.max(...xs)+1;b.y0=Math.min(...ys);b.y1=Math.max(...ys)+1;
+    b.cx=(xs.reduce((s,v)=>s+v,0)/xs.length+.5)*RC;b.cy=(ys.reduce((s,v)=>s+v,0)/ys.length+.5)*RC;b.span=(b.x1-b.x0)*RC;
+    b.heal=b.pts.some(p=>p.heal);
+    const extra=b.kind==='st'?[b.st,...b.alts].flatMap(s=>(s.areas||[]).map(a=>String(a.area))):[];
+    b.areas=[...new Set([...b.pts.flatMap(p=>(p.areas||[]).map(String)),...extra])];b.sp=[{areas:b.areas}];
+    b.has=b.kind==='st'||b.areas.length>0;
+    b.d=b.cells.map(k=>{const [x,y]=kxy(k);return `M${x*RC} ${y*RC}h${RC}v${RC}h${-RC}z`}).join('');
+    let e='';b.cells.forEach(k=>{const [x,y]=kxy(k),X=x*RC,Y=y*RC,out=(nx,ny)=>owner.get(nx+','+ny)!==b;
+      if(out(x+1,y))e+=`M${X+RC} ${Y}v${RC}`;if(out(x-1,y))e+=`M${X} ${Y}v${RC}`;if(out(x,y+1))e+=`M${X} ${Y+RC}h${RC}`;if(out(x,y-1))e+=`M${X} ${Y}h${RC}`});
+    b.edge=e;
+    b.gl=b.cells.slice().sort((a,c)=>{const [ax,ay]=kxy(a),[cx,cy]=kxy(c);return cy-ay||ax-cx})[0];
+    b.here=(rm.stitched||[]).filter(s=>s!==b.st&&!b.alts.includes(s)&&(s.gridPoints||[]).some(p=>b.cells.includes(p[0]+','+p[1])));
+  });
+  R.blocks=blocks;R.owner=owner;
+}
+/* thick borders between blocks (and around the outside); `only` gives a ward's outline instead */
 function regEdges(R,only){
-  let inner='',edge='';
-  R.cells.forEach((ps,k)=>{const n=R.nameAt(k);if(only&&n!==only)return;const [x,y]=kxy(k),X=x*RC,Y=y*RC;
-    const side=(nx,ny,seg,own)=>{const o=R.nameAt(nx+','+ny);if(only){if(o!==n)edge+=seg;return}
-      if(o===n){if(own)inner+=seg}else if(o==null||own)edge+=seg};
+  let edge='';
+  R.cells.forEach((ps,k)=>{const n=R.nameAt(k);if(only&&n!==only)return;const [x,y]=kxy(k),X=x*RC,Y=y*RC,b=R.owner.get(k);
+    const side=(nx,ny,seg,own)=>{const o=nx+','+ny;if(only){if(R.nameAt(o)!==n)edge+=seg;return}
+      const ob=R.owner.get(o);if(!ob?true:own&&ob!==b)edge+=seg};
     side(x+1,y,`M${X+RC} ${Y}v${RC}`,1);side(x,y+1,`M${X} ${Y+RC}h${RC}`,1);
     side(x-1,y,`M${X} ${Y}v${RC}`,0);side(x,y-1,`M${X} ${Y}h${RC}`,0)});
-  return {inner,edge};
+  return {edge};
 }
 const starPath=(cx,cy,r)=>{let d='';for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2,rr=i%2?r*.45:r;d+=(i?'L':'M')+(cx+rr*Math.cos(a)).toFixed(2)+' '+(cy+rr*Math.sin(a)).toFixed(2)}return d+'Z'};
 const GLYPH={
@@ -1265,47 +1302,62 @@ const GLYPH={
 const GKEY=[['heal','Pokémon Center'],['gyms','Gym, boss or rival'],['trainers','Trainers'],['wild','Wild Pokémon'],['fields','Field effect'],['items','Items'],['tms','TMs and HMs']];
 const healGlyph=(cx,cy,r=5.2)=>`<g class="reg-heal"><circle cx="${cx}" cy="${cy}" r="${r}"/><path d="M${cx-r*.58} ${cy}h${r*1.16}M${cx} ${cy-r*.58}v${r*1.16}"/></g>`;
 const keySvg=k=>`<svg viewBox="-2 -2 9.2 9.2" aria-hidden="true">${k==='heal'?healGlyph(2.6,2.6,3.6):`<g class="reg-gl">${GLYPH[k](0,0)}</g>`}</svg>`;
+const blockCap=b=>{if(b.kind==='st')return b.name+' · stitched map';const subs=[...new Set(b.pts.map(p=>p.sub).filter(Boolean))];
+  return b.name+(subs.length?' · '+subs.slice(0,3).join(', ')+(subs.length>3?', …':''):'')};
+const blockEl=b=>b&&$(`#reg-cells .reg-blk[data-k="${b.k}"]`);
 
 async function showRegion(rm){
   await Promise.all([load('areas'),load('trainers')]);
   const R=regModel(rm),VW=R.W*RC+2*RP,VH=R.H*RC+2*RP;
-  let dots='',cells='',heal='';
+  let dots='',blk='',defs='',heal='';
   for(let y=0;y<R.H;y++)for(let x=0;x<R.W;x++)if(!R.cells.has(x+','+y))dots+=`<rect class="reg-dot" x="${x*RC+RC/2-1.5}" y="${y*RC+RC/2-1.5}" width="3" height="3"></rect>`;
-  R.cells.forEach((ps,k)=>{const [x,y]=kxy(k),w=R.wards.get(R.nameAt(k)),has=ps.some(p=>(p.areas||[]).length),h=ps.some(p=>p.heal);
-    const lab=capText(ps)+(h?' · Pokémon Center':'');
-    cells+=`<rect class="reg-pt rc${w.color}${has?'':' nomap'}" data-k="${k}" x="${x*RC}" y="${y*RC}" width="${RC}" height="${RC}" tabindex="0" role="button" aria-pressed="false" aria-label="${esc(lab)}"><title>${esc(lab)}</title></rect>`;
-    if(h)heal+=healGlyph(x*RC+RC-6.5,y*RC+6.5)});
-  const E=regEdges(R);
-  const svg=`<svg id="reg-svg" viewBox="${-RP} ${-RP} ${VW} ${VH}" role="group" aria-label="Region town map. Squares are places, coloured by ward or town.">
-    <g>${dots}</g><g id="reg-cells">${cells}</g><path class="reg-inner" d="${E.inner}"></path><path class="reg-edge" d="${E.edge}"></path>
-    <g id="reg-glyphs" class="reg-gl"></g>${heal}<path class="reg-wsel" id="reg-wsel" d=""></path><rect class="reg-csel" id="reg-csel" width="${RC-3}" height="${RC-3}" x="-99" y="-99"></rect><g id="reg-labels"></g></svg>`;
-  $('#map-main').innerHTML=`<div class="regwrap"><div class="reg-cap" id="reg-cap" aria-live="polite"></div>${svg}</div><p class="note" style="margin-top:8px">Colours group squares by ward or town; thick lines are their borders. Pick a square for its maps, or choose a stitched map above.</p>`;
-  const svgEl=$('#reg-svg');
-  svgEl.addEventListener('pointerover',e=>{const r=e.target.closest('.reg-pt');setCap(r?r.dataset.k:MP.sel)});
+  R.blocks.forEach(b=>{const st=b.kind==='st',lab=blockCap(b)+(b.heal?' · Pokémon Center':'');
+    if(st)defs+=`<clipPath id="rclip-${b.i}"><path d="${b.d}"/></clipPath>`;
+    blk+=`<g class="reg-blk${st?' is-st':''}" data-k="${b.k}" tabindex="0" role="${st?'link':'button'}"${st?'':' aria-pressed="false"'} aria-label="${esc(st?lab+'. Opens the stitched map':lab)}"><title>${esc(lab)}</title><path class="reg-pt rc${b.color}${b.has?'':' nomap'}" d="${b.d}"/>${st?`<g class="reg-im" data-b="${b.i}"></g>`:''}</g>`});
+  R.cells.forEach((ps,k)=>{if(ps.some(p=>p.heal)){const [x,y]=kxy(k);heal+=healGlyph(x*RC+RC-6.5,y*RC+6.5)}});
+  const svg=`<svg id="reg-svg" viewBox="${-RP} ${-RP} ${VW} ${VH}" role="group" aria-label="Region town map. Each shape is a place, coloured by ward or town; shapes with a picture open a stitched map.">
+    <defs>${defs}</defs><g>${dots}</g><g id="reg-cells">${R.blocks.length?blk:''}</g><path class="reg-edge" d="${regEdges(R).edge}"></path>
+    <g id="reg-glyphs" class="reg-gl"></g>${heal}<path class="reg-wsel" id="reg-wsel" d=""></path><path class="reg-csel" id="reg-csel" d=""></path><path class="reg-fo" id="reg-fo" d=""></path><g id="reg-labels"></g></svg>`;
+  $('#map-main').innerHTML=`<div class="regwrap"><div class="reg-cap" id="reg-cap" aria-live="polite"></div>${svg}</div><p class="note" style="margin-top:8px">Colours group places by ward or town; thick lines are their borders. Shapes showing a map picture are stitched maps: pick one to open it. Pick any other place for its maps.</p>`;
+  const svgEl=$('#reg-svg'),blkOf=e=>e.target.closest&&e.target.closest('.reg-blk');
+  svgEl.addEventListener('pointerover',e=>{const r=blkOf(e);setCap(r?r.dataset.k:MP.sel)});
   svgEl.addEventListener('pointerleave',()=>setCap(MP.sel));
-  svgEl.addEventListener('click',e=>{const r=e.target.closest('.reg-pt');if(r)regPick(r.dataset.k)});
-  svgEl.addEventListener('keydown',e=>{const r=e.target.closest('.reg-pt');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();regPick(r.dataset.k)}});
+  svgEl.addEventListener('click',e=>{const r=blkOf(e);if(r)regActivate(r.dataset.k)});
+  svgEl.addEventListener('keydown',e=>{const r=blkOf(e);if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();regActivate(r.dataset.k)}});
+  svgEl.addEventListener('focusin',e=>{const r=blkOf(e),b=r&&R.owner.get(r.dataset.k);let vis=false;try{vis=r.matches(':focus-visible')}catch(_){}
+    $('#reg-fo').setAttribute('d',b&&vis?b.edge:'');if(b)setCap(b.k)});
+  svgEl.addEventListener('focusout',()=>{$('#reg-fo').setAttribute('d','');setCap(MP.sel)});
   if(MP.ro)MP.ro.disconnect();
   let lastW=0;MP.ro=new ResizeObserver(()=>{const w=Math.round(svgEl.getBoundingClientRect().width);if(w&&w!==lastW){lastW=w;layoutRegionLabels()}});MP.ro.observe(svgEl);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if($('#reg-svg')===svgEl)layoutRegionLabels()});
   renderRegionLayers();
   if(!MP.sel||!R.cells.has(MP.sel))MP.sel=[...R.cells.keys()].find(k=>R.cells.get(k).some(p=>p.heal))||[...R.cells.keys()][0];
   regPick(MP.sel);
+  regImages(R,svgEl);
 }
-const capText=ps=>[...new Set(ps.map(p=>[p.name,p.sub].filter(Boolean).join(' · ')))].join('; ');
-function setCap(k){const R=MP.reg,el=$('#reg-cap');if(!R||!el)return;const ps=R.cells.get(k)||[];const s=cellStats(ps);
-  el.innerHTML=esc(capText(ps))+(statStr(s)?`<span class="mono" title="${esc(statTitle(s))}">${esc(statStr(s))}</span>`:'')}
+/* paint each composite's own stitched image into its block (cover-fit to the bounding box, clipped to the cells) */
+async function regImages(R,svgEl){
+  for(const b of R.blocks){if(b.kind!=='st')continue;
+    const bun=await loadBundle(b.st.bundle,SRC.regionmap);if($('#reg-svg')!==svgEl)return;
+    const src=bun&&bun[b.st.key];const g=$(`.reg-im[data-b="${b.i}"]`,svgEl);if(!src||!g)continue;
+    const im=document.createElementNS('http://www.w3.org/2000/svg','image');
+    const at={href:src,x:b.x0*RC,y:b.y0*RC,width:(b.x1-b.x0)*RC,height:(b.y1-b.y0)*RC,preserveAspectRatio:'xMidYMid slice','clip-path':`url(#rclip-${b.i})`};
+    for(const k in at)im.setAttribute(k,at[k]);g.appendChild(im);g.parentNode.classList.add('has-img')}
+}
+function regActivate(k){const R=MP.reg,b=R&&R.owner.get(k);if(!b)return;if(b.kind==='st'){MP.sel=k;location.hash='map-'+b.st.id}else regPick(k)}
+function setCap(k){const R=MP.reg,el=$('#reg-cap');if(!R||!el)return;const b=R.owner.get(k);if(!b){el.textContent='';return}const s=cellStats(b.sp);
+  el.innerHTML=esc(blockCap(b))+(statStr(s)?`<span class="mono" title="${esc(statTitle(s))}">${esc(statStr(s))}</span>`:'')}
 function regPick(k){
-  const R=MP.reg;if(!R||!R.cells.has(k))return;MP.sel=k;const [x,y]=kxy(k);
-  $('#reg-wsel').setAttribute('d',regEdges(R,R.nameAt(k)).edge);
-  const cs=$('#reg-csel');cs.setAttribute('x',x*RC+1.5);cs.setAttribute('y',y*RC+1.5);
-  $$('#reg-cells .reg-pt').forEach(r=>r.setAttribute('aria-pressed',String(r.dataset.k===k)));
+  const R=MP.reg;if(!R||!R.cells.has(k))return;MP.sel=k;const b=R.owner.get(k);
+  $('#reg-wsel').setAttribute('d',b.kind==='pl'&&R.wards.get(b.ward).cells.length>b.cells.length?regEdges(R,b.ward).edge:'');
+  $('#reg-csel').setAttribute('d',b.edge);
+  $$('#reg-cells .reg-blk[aria-pressed]').forEach(r=>r.setAttribute('aria-pressed',String(r.dataset.k===b.k)));
   setCap(k);renderRegionSide(k);
 }
 function renderRegionLayers(){
   const R=MP.reg,g=$('#reg-glyphs');if(!R||!g)return;
   const on=['gyms','trainers','wild','fields','items'].filter(layerOn);let h='';
-  if(on.length)R.cells.forEach((ps,k)=>{const s=cellStats(ps),[x,y]=kxy(k);
+  if(on.length)R.blocks.forEach(b=>{const s=cellStats(b.sp),[x,y]=kxy(b.gl);
     const gl=[];if(on.includes('gyms')&&s.gyms)gl.push('gyms');if(on.includes('trainers')&&s.tr)gl.push('trainers');if(on.includes('wild')&&s.wild)gl.push('wild');
     if(on.includes('fields')&&s.fields.length)gl.push('fields');if(on.includes('items')&&s.items)gl.push('items');if(on.includes('items')&&s.tms)gl.push('tms');
     gl.forEach((t,i)=>{h+=GLYPH[t](x*RC+3+(i%4)*6.6,y*RC+RC-8.5-Math.floor(i/4)*6.6)})});
@@ -1321,14 +1373,15 @@ function layoutRegionLabels(){
   ctx.font=`600 ${fs}px ${getComputedStyle(document.documentElement).getPropertyValue('--f-display')}`;
   const tw=t=>ctx.measureText(t.toUpperCase()).width+t.length*fs*.05;
   const placed=[],fits=b=>b.x0>=-RP&&b.y0>=-RP&&b.x1<=VW-RP&&b.y1<=VH-RP&&!placed.some(o=>b.x0<o.x1+pad&&b.x1>o.x0-pad&&b.y0<o.y1+pad&&b.y1>o.y0-pad);
-  const order=[...R.wards.values()].sort((a,b)=>(b.heal-a.heal)||b.cells.length-a.cells.length||a.name.localeCompare(b.name));
+  const order=R.blocks.slice().sort((a,b)=>((b.kind==='st')-(a.kind==='st'))||(b.heal-a.heal)||b.cells.length-a.cells.length||a.name.localeCompare(b.name));
   let out='';
   order.forEach(w=>{
-    const words=w.name.split(/\s+/),vs=[[w.name]];
+    const name=w.name.replace(/\s*…\s*$/,''),words=name.split(/\s+/),vs=[[name]];
     if(words.length>1){let best=null;for(let i=1;i<words.length;i++){const a=words.slice(0,i).join(' '),b=words.slice(i).join(' '),m=Math.max(tw(a),tw(b));if(!best||m<best[0])best=[m,[a,b]]}vs.push(best[1])}
-    const V=vs.map(ls=>({ls,w:Math.max(...ls.map(tw)),h:(ls.length-1)*lh+fs*.82})).sort((a,b)=>((a.w>w.span+RC*.3)-(b.w>w.span+RC*.3))||a.ls.length-b.ls.length);
+    const parts=name.split(/\s+\/\s+/);if(parts.length>1){vs.push(parts.length>3?[...parts.slice(0,2),parts[2]+' …']:parts);vs.push([parts[0]+' …'])}
+    const V=vs.map(ls=>({ls,w:Math.max(...ls.map(tw)),h:(ls.length-1)*lh+fs*.82})).sort((a,b)=>((a.w>w.span+RC*.3)-(b.w>w.span+RC*.3))||a.ls.length-b.ls.length||(a.ls.join('').length<name.length)-(b.ls.join('').length<name.length));
     const cc=w.cells.map(k=>{const [x,y]=kxy(k);return [x*RC+RC/2,y*RC+RC/2]}).sort((a,b)=>Math.hypot(a[0]-w.cx,a[1]-w.cy)-Math.hypot(b[0]-w.cx,b[1]-w.cy)).slice(0,10);
-    const anchors=R.nameAt(Math.floor(w.cx/RC)+','+Math.floor(w.cy/RC))===w.name?[[w.cx,w.cy],...cc]:cc;
+    const anchors=R.owner.get(Math.floor(w.cx/RC)+','+Math.floor(w.cy/RC))===w?[[w.cx,w.cy],...cc]:cc;
     for(const v of V)for(const [ax,ay] of anchors){const b={x0:ax-v.w/2,x1:ax+v.w/2,y0:ay-v.h/2,y1:ay+v.h/2};
       if(fits(b)){placed.push(b);const n=v.ls.length;
         out+=`<text class="reg-lb" x="${ax.toFixed(1)}" font-size="${fs.toFixed(2)}" stroke-width="${(fs*.32).toFixed(2)}" text-anchor="middle">${v.ls.map((l,i)=>`<tspan x="${ax.toFixed(1)}" y="${(ay+(i-(n-1)/2)*lh+fs*.36).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>`;return}}
@@ -1336,20 +1389,28 @@ function layoutRegionLabels(){
   g.innerHTML=out;
 }
 function renderRegionSide(k){
-  const R=MP.reg,rm=R.rm,ps=R.cells.get(k)||[],cur=R.nameAt(k),w=R.wards.get(cur);
-  const wards=[...R.wards.values()].sort((a,b)=>a.name.localeCompare(b.name));
-  const s=cellStats(ps);
-  $('#map-side').innerHTML=`<div class="panel">${ps.map(p=>`<div style="display:grid;gap:6px"><h2 style="display:flex;align-items:center;gap:9px;font:800 22px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase"><span class="sw rc${w.color}" aria-hidden="true"></span>${esc(p.name)}</h2>${p.sub?`<span class="h-sub">${esc(p.sub)}</span>`:''}
+  const R=MP.reg,rm=R.rm,b=R.owner.get(k);if(!b)return;
+  const wards=[...R.wards.values()].sort((a,c)=>a.name.localeCompare(c.name)),st=b.kind==='st';
+  const s=cellStats(b.sp),seen=new Set();
+  const groups=b.pts.map(p=>({p,areas:(p.areas||[]).map(String).filter(a=>!seen.has(a)&&!!seen.add(a))})).filter(g=>g.areas.length||g.p.heal);
+  if(st)[b.st,...b.alts].forEach(x=>{const extra=(x.areas||[]).map(a=>String(a.area)).filter(a=>!seen.has(a)&&!!seen.add(a));if(extra.length)groups.push({p:{name:b.name,sub:x===b.st?'Also in the stitched map':x.name},areas:extra})});
+  const alist=as=>`<ul class="mlist">${as.map(a=>{const sa=areaStats(a);return `<li><a href="#area-${esc(a)}">${esc(areaName(a))}</a><span class="mono" title="${esc(statTitle(sa))}">${esc(statStr(sa))||esc(a)}</span></li>`}).join('')}</ul>`;
+  const here=b.here.filter(x=>!b.alts.includes(x));
+  $('#map-side').innerHTML=`<div class="panel"><h2 style="display:flex;align-items:center;gap:9px;font:800 22px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase"><span class="sw rc${b.color}" aria-hidden="true"></span>${esc(b.name)}</h2>
+    ${st?`<p style="margin:0;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center"><a class="btn" style="text-decoration:none" href="#map-${esc(b.st.id)}">Open stitched map →</a>${b.alts.map(x=>`<a href="#map-${esc(x.id)}">${esc(x.name.replace(b.st.name,'').replace(/^\s*\(|\)\s*$/g,'')||x.name)}</a>`).join('')}</p>`:''}
+    ${groups.map(({p,areas})=>`<div style="display:grid;gap:6px">${p.sub||p.name!==b.name?`<span class="lbl">${esc([p.name!==b.name?p.name:'',p.sub].filter(Boolean).join(' · '))}</span>`:''}
     ${p.heal?`<span class="note kicon" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">${keySvg('heal')}Pokémon Center${p.healArea?`: <a href="#area-${esc(p.healArea)}">${esc(areaName(p.healArea))}</a>`:''}</span>`:''}
-    ${(p.areas||[]).length?`<ul class="mlist">${p.areas.map(a=>{const st=areaStats(a);return `<li><a href="#area-${esc(a)}">${esc(areaName(a))}</a><span class="mono" title="${esc(statTitle(st))}">${esc(statStr(st))||esc(a)}</span></li>`}).join('')}</ul>`:'<p class="empty">No linked map.</p>'}</div>`).join('<hr style="border:0;border-top:1px solid var(--line-soft);width:100%">')}
+    ${areas.length?alist(areas):''}</div>`).join('<hr style="border:0;border-top:1px solid var(--line-soft);width:100%">')}
+    ${seen.size?'':'<p class="empty">No linked map.</p>'}
+    ${here.length?`<div style="display:grid;gap:6px"><span class="lbl">Stitched maps here</span><ul class="mlist">${here.map(x=>`<li><a href="#map-${esc(x.id)}">${esc(x.name)}</a><span class="mono">${(x.areas||[]).length} maps</span></li>`).join('')}</ul></div>`:''}
     ${statStr(s)?`<div class="agg">${s.wild?`<span>${s.wild} wild</span>`:''}${s.tr?`<span>${s.tr} trainers</span>`:''}${s.gyms?`<span>★ ${s.gyms}</span>`:''}${s.fields.map(f=>`<span>◆ ${esc(f)}</span>`).join('')}${s.items?`<span>${s.items} items</span>`:''}${s.tms?`<span>${s.tms} TM/HM</span>`:''}</div>`:''}
-    <span class="mono note">grid ${esc(k.replace(',',', '))}</span></div>
+    <span class="mono note">${b.cells.length>1?`${b.cells.length} squares`:'grid '+esc(b.k.replace(',',', '))}</span></div>
     <div class="panel"><span class="lbl">Map key</span><div class="gkey">${GKEY.filter(([g])=>g==='heal'||g==='tms'?(g==='heal'||layerOn('items')):layerOn(g)).map(([g,l])=>`<span>${keySvg(g)}${esc(l)}</span>`).join('')}</div></div>
-    <div class="panel"><span class="lbl">Wards and places <span class="cnt mono">${wards.length}</span></span><ul class="legend">${wards.map(x=>`<li><a href="#map" data-ward="${esc(x.name)}"${x.name===cur?' aria-current="true"':''}><span class="sw rc${x.color}" aria-hidden="true"></span><span class="lg-n">${esc(x.name)}</span></a></li>`).join('')}</ul></div>
+    <div class="panel"><span class="lbl">Wards and places <span class="cnt mono">${wards.length}</span></span><ul class="legend">${wards.map(x=>`<li><a href="#map" data-ward="${esc(x.name)}"${x.name===b.ward?' aria-current="true"':''}><span class="sw rc${x.color}" aria-hidden="true"></span><span class="lg-n">${esc(x.name)}</span></a></li>`).join('')}</ul></div>
     ${(rm.stitched||[]).length?`<div class="panel"><span class="lbl">Stitched maps</span><ul class="mlist">${rm.stitched.map(s=>`<li><a href="#map-${esc(s.id)}">${esc(s.name)}</a><span class="mono">${(s.areas||[]).length} maps</span></li>`).join('')}</ul></div>`:''}`;
   $('#map-side').onclick=e=>{const a=e.target.closest('a[data-ward]');if(!a)return;e.preventDefault();const W=R.wards.get(a.dataset.ward);if(!W)return;
     const kk=W.cells.find(c=>R.cells.get(c).some(p=>p.heal))||W.cells.find(c=>R.cells.get(c).some(p=>(p.areas||[]).length))||W.cells[0];
-    regPick(kk);const r=$(`.reg-pt[data-k="${kk}"]`);if(r){r.focus({preventScroll:true});if(matchMedia('(max-width:860px)').matches)$('#reg-svg').scrollIntoView({block:'start'})}};
+    regPick(kk);const r=blockEl(R.owner.get(kk));if(r){r.focus({preventScroll:true});if(matchMedia('(max-width:860px)').matches)$('#reg-svg').scrollIntoView({block:'start'})}};
 }
 async function showStitched(st){
   MP.st=st;if(MP.ro){MP.ro.disconnect();MP.ro=null}
