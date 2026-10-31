@@ -49,3 +49,35 @@ Local clones live in `/tmp/claude-0/src/` (not committed). Every extractor lives
 The lead agent runs the extractors, validates the output against the schema,
 commits, and publishes `app/index.html` with `app/data/**` and `app/maps/**` as
 artifact files.
+
+## Phase 3: Live link to the running game (local only)
+
+**Goal:** when the game runs on the same laptop, the guide follows it.
+- Trainers and items tick themselves off as you beat or collect them.
+- The current battle pops up: the trainer, their team, the active Pokémon's types and weaknesses, and the field effect.
+- The map shows where the player is.
+
+**Why it is feasible:** Reborn 19.5 runs on mkxp-z with plain Ruby scripts. At startup it loads every `./Data/Mods/*.rb` file (see `Scripts/idk.rb`, `startup`). A mod can read the game state (`$game_map`, `$game_player`, `$game_self_switches`, the active `PokeBattle_Battle`, `$fefieldeffect`) and write it to a JSON file.
+
+**The artifact cannot do this.** It runs in a locked-down frame on claude.ai, with no access to local files or localhost. The live link therefore works only with the **local copy** of the page, served from the laptop. The published artifact stays as it is, and simply never shows live mode.
+
+**Pieces:**
+1. `bridge/mod/RebornFieldGuideLink.rb` is the game mod. It goes in `<game>/Data/Mods/`.
+   - It writes `<game>/RFGLink/state.json` atomically (write a temp file, then rename).
+   - Writes are throttled. It writes when the map or position changes, and on battle start, each battle turn and battle end.
+   - It also writes when a self switch or progress flag changes.
+   - It is read-only towards the game: it never changes game state, and on any error it logs to `RFGLink/error.log` and disables itself.
+2. `bridge/serve.py` is a stdlib-only local server.
+   - It serves `app/`, and `/live/state.json` from the game folder (`--game <path>`).
+   - It binds to 127.0.0.1 only.
+3. **Live mode in `app/index.html`.**
+   - The page probes `live/state.json`. It gets a 404 in the artifact, where live mode stays hidden.
+   - **Map:** a player marker on the map, with an auto-follow option.
+   - **Auto-tick:** items and trainers are ticked off using self switches from `events.json` (map id + event id).
+   - **Battle panel:** the opponent's trainer, team and active Pokémon, type matchups against the player's moves, and the current field effect, linked to the Fields page.
+4. **`bridge/simulate.py`** writes a fake `state.json` sequence, so live mode can be tested without the game.
+5. **`LOCAL_SETUP.md`** gives step-by-step setup for Windows, macOS and Linux.
+
+**Limits:**
+- The live link can't be fully tested without running the game on the laptop.
+- The first real run may need small fixes to hook names.
