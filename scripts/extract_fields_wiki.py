@@ -201,6 +201,12 @@ def items(body):
     while i < len(lines):
         line = lines[i].rstrip()
         s = line.strip()
+        if re.match(r"^=+[^=].*=+$", s):  # sub-heading: handled by sections()
+            if out:
+                out[-1]["open"] = False
+                out[-1]["closed"] = True
+            i += 1
+            continue
         if re.match(r"\{\{\s*FieldMoves", s, re.I):
             j, closes, buf = i + 1, 0, []
             while j < len(lines) and closes < 2:
@@ -224,8 +230,10 @@ def items(body):
                 buf.append(lines[j])
                 j += 1
             if "wikitable" in s:
-                out.append({"kind": "table", "raw": "\n".join(buf), "depth": 0,
-                            "moves": [], "rows": table_rows("\n".join(buf[1:]))})
+                hdr, rows = table_struct("\n".join(buf[1:]))
+                out.append({"kind": "table", "raw": "", "depth": 0, "moves": [],
+                            "rows": table_rows("\n".join(buf[1:])),
+                            "headers": hdr, "data": rows})
             i = j + 1
             continue
         if s.startswith("*") or s.startswith("#"):
@@ -233,7 +241,10 @@ def items(body):
             out.append({"kind": "bullet", "raw": s[depth:].strip(), "depth": depth,
                         "moves": []})
         elif s.startswith(":") and out:
-            out[-1]["raw"] += " " + s.lstrip(":").strip()
+            # indented continuation: its own item one level below the previous one
+            depth = (out[-1]["depth"] if out[-1]["kind"] == "bullet" else 0) + 1
+            out.append({"kind": "bullet", "raw": s.lstrip(":").strip(), "depth": depth,
+                        "moves": []})
         elif not s or re.fullmatch(r"(<[^>]*>\s*)+|<br\s*/?>|\{\{Field Effects Color[^}]*\}\}"
                                     r"|\[\[\s*Category:[^\]]*\]\]|\{\{[^{}|]*\}\}", s, re.I):
             if out:
@@ -250,6 +261,27 @@ def items(body):
     for it in out:
         it["text"] = clean(it["raw"])
     return [it for it in out if it["text"] or it["moves"] or it.get("rows")]
+
+
+def merged(its):
+    """Fold fragment bullets into a preceding 'lead-in:' line:
+    'X except:' + '* A' + '* B'  ->  'X except: A; B'."""
+    out = []
+    for it in its:
+        p = out[-1] if out else None
+        if (p and it["kind"] == "bullet" and not it["moves"] and p.get("absorb")
+                and ((p["kind"] == "bullet" and it["depth"] > p["depth"])
+                     or (p["kind"] == "prose" and re.search(r"(except|below):$", p["lead"])
+                         and not it["text"].rstrip().endswith(".")))):
+            p["text"] = p["text"].rstrip(".") + (" " if p["text"].endswith(":") else "; ") + it["text"]
+            p["raw"] += " " + it["raw"]
+            continue
+        it = dict(it)
+        it["lead"] = it["text"].rstrip()
+        it["absorb"] = it["kind"] in ("prose", "bullet") and not it["moves"] \
+            and it["text"].rstrip().endswith(":")
+        out.append(it)
+    return out
 
 
 def table_rows(body):
@@ -271,6 +303,33 @@ def table_rows(body):
         if cells:
             rows.append(cells)
     return rows
+
+
+def table_struct(body):
+    """(header rows, data rows) of a wikitable body, cells cleaned to plain text."""
+    heads, rows = [], []
+    for chunk in re.split(r"^\|-.*$", body, flags=re.M):
+        cells, head = [], False
+        for line in chunk.split("\n"):
+            if line.startswith("!") or line.startswith("|") and not line.startswith("|+"):
+                head = head or line.startswith("!")
+                for c in re.split(r"!!|\|\|", line[1:]):
+                    parts = c.split("|", 1)
+                    if len(parts) == 2 and re.search(r"(style|scope|rowspan|colspan|align|width)\s*=", parts[0]):
+                        c = parts[1]
+                    cells.append(clean(c))
+        if cells:
+            (heads if head else rows).append(cells)
+    return heads, rows
+
+
+def join_sentences(parts):
+    out = ""
+    for p in parts:
+        if out and not re.search(r"[.!?:;]$", out):
+            out += "."
+        out = (out + " " + p).strip()
+    return out
 
 
 def with_moves(text, moves):
@@ -319,7 +378,10 @@ def boost_group(text, default):
 
 def heading_phrase(h):
     """'Moves that have 1.5x base power' -> '1.5x base power'."""
-    h = re.sub(r"^moves\s+(?:that\s+)?(?:have\s+)?", "", h, flags=re.I).strip()
+    h = re.sub(r"^moves\s+(?:that\s+)?(?:\w+\s+)?have\s+", "", h, flags=re.I) \
+        if re.match(r"^moves\s+(?:that\s+)?(?:\w+\s+)?have\s", h, re.I) \
+        else re.sub(r"^moves\s+(?:that\s+)?", "", h, flags=re.I)
+    h = h.strip()
     return h[:1].upper() + h[1:] if h else h
 
 
@@ -336,6 +398,16 @@ def parse_effects(text, title):
         if all(not (x["text"] == t and x["group"] == group) for x in eff):
             eff.append(e)
 
+    def add_table(group, it, sub):
+        hdr = it.get("headers") or []
+        cols = hdr[-1] if hdr else []
+        lead = " / ".join(c for c in (hdr[0] if hdr else []) if c)
+        t = f"Table: {lead}" + (f" ({', '.join(cols)})" if len(hdr) > 1 else "")
+        e = {"group": group, "text": t, "table": {"headers": hdr, "rows": it.get("data") or []}}
+        if sub:
+            e["section"] = sub
+        eff.append(e)
+
     secs = dict((h, b) for h, b in sections(text, 2) if h)
     order = [h for h, _ in sections(text, 2) if h]
 
@@ -346,12 +418,12 @@ def parse_effects(text, title):
                  "Trivia"):
             continue
         group = "Field changes" if h == "Stages" else "Other"
-        for it in items(secs[h]):
+        for it in merged(items(secs[h])):
             if it["kind"] == "table":
                 for r in it["rows"]:
                     cells = [clean(c) for c in r]
                     if len(cells) >= 3:
-                        add(group, f"{cells[0]} ({cells[1]}): {cells[2]}", h)
+                        add(group, f"{cells[0]}: {cells[2]} (Applies when: {cells[1]})", h)
                     elif cells:
                         add(group, ": ".join(c for c in cells if c), h)
             else:
@@ -359,9 +431,14 @@ def parse_effects(text, title):
 
     # General Effects (with optional ===subsections===)
     for sub, body in sections(secs.get("General Effects", ""), 3):
-        for it in items(body):
+        for it in merged(items(body)):
+            if it["kind"] == "table":
+                add_table("Other", it, sub)
+                continue
             t = with_moves(it["text"], it["moves"])
-            if sub and re.search(r"type chart|physical and special|inverted", sub, re.I):
+            if sub and re.search(r"field damage|damage from", sub, re.I):
+                g = "Other"
+            elif sub and re.search(r"type chart|physical and special|inverted", sub, re.I):
                 g = "Other"
             elif re.match(r"\s*\{\{\s*i\s*\|", it["raw"]):
                 g = "Items"
@@ -369,12 +446,14 @@ def parse_effects(text, title):
                 g = boost_group(t, "Other")
             add(g, t, sub)
 
-    for it in items(secs.get("Abilities Affected", "")):
+    for it in merged(items(secs.get("Abilities Affected", ""))):
         add("Abilities", with_moves(it["text"], it["moves"]))
 
     for sub, body in sections(secs.get("Moves Affected", ""), 3):
-        its = items(body)
-        for it in its:
+        for it in merged(items(body)):
+            if it["kind"] == "table":
+                add_table("Move effects", it, sub)
+                continue
             if it["kind"] == "moves" or (it["moves"] and it["kind"] == "prose"
                                           and it["text"].endswith(":")):
                 lead = it["text"].rstrip(":") if it["text"] else heading_phrase(sub or "")
@@ -384,9 +463,7 @@ def parse_effects(text, title):
                 add(g, f"{lead}: {', '.join(it['moves'])}", sub)
             else:
                 t = with_moves(it["text"], it["moves"])
-                if sub and re.match(r"moves (?:that )?(?:have )?\d", sub, re.I):
-                    g = boost_group(sub, "Type & move boosts")
-                elif re.match(r"(the following moves|moves that) (?:now )?have [\d.]+x", t, re.I):
+                if re.match(r"(the following moves|moves that) (?:now )?have [\d.]+x", t, re.I):
                     g = boost_group(t, "Type & move boosts")
                 else:
                     g = "Move effects"
@@ -396,27 +473,39 @@ def parse_effects(text, title):
 
 def parse_transitions_to(body, field_titles, self_title):
     changes, terminated, notes = [], [], []
-    for it in items(body):
-        raw = it["raw"]
-        txt = with_moves(it["text"], it["moves"])
-        targets = []
-        for m in re.finditer(r"\[\[([^\]|#]+)(?:\|[^\]]*)?\]\]", raw):
-            t = m.group(1).strip()
-            k = field_titles.get(norm(t))
-            if k and k != self_title and k not in targets:
-                targets.append(k)
-        moves = it["moves"] or tpl_args(re.split(r"\b(?:in the absence|unless|without|except)\b", raw)[0], {"m"})
-        abil = tpl_args(raw, {"a"})
-        if re.search(r"terminat", raw, re.I) and not targets:
-            terminated += [m for m in moves if m not in terminated]
-            notes.append(txt)
+    for sub, sbody in sections(body, 3):
+        its = merged(items(sbody))
+        if sub:  # e.g. "Mirror shattering": one mechanic spread over several lines
+            moves = []
+            for it in its:
+                moves += [m for m in it["moves"] if m not in moves]
+            if any(re.search(r"terminat", it["raw"] + it["text"], re.I) for it in its):
+                terminated += [m for m in moves if m not in terminated]
+            for it in its:
+                notes.append((with_moves(it["text"], it["moves"]), sub))
             continue
-        if not targets:
-            notes.append(txt)
-            continue
-        by = ", ".join(moves + abil) or txt
-        for t in targets:
-            changes.append({"to": slug(t), "name": t, "by": by, "text": txt})
+        for it in its:
+            raw = it["raw"]
+            txt = with_moves(it["text"], it["moves"])
+            targets = []
+            for m in re.finditer(r"\[\[([^\]|#]+)(?:\|[^\]]*)?\]\]", raw):
+                k = field_titles.get(norm(m.group(1).strip()))
+                if k and k != self_title and k not in targets:
+                    targets.append(k)
+            moves = tpl_args(
+                re.split(r"\b(?:in the absence|unless|without|except)\b", raw)[0], {"m"})
+            moves += [m for m in it["moves"] if m not in moves]
+            abil = tpl_args(raw, {"a"})
+            if re.search(r"terminat", raw, re.I) and not targets:
+                terminated += [m for m in moves if m not in terminated]
+                notes.append((txt, None))
+                continue
+            if not targets:
+                notes.append((txt, None))
+                continue
+            by = ", ".join(moves + abil) or txt
+            for t in targets:
+                changes.append({"to": slug(t), "name": t, "by": by, "text": txt})
     return changes, terminated, notes
 
 
@@ -437,7 +526,7 @@ def parse_transitions_from(body, field_titles, self_title):
             k = field_titles.get(norm(m.group(1).strip()))
             if k and k != self_title and k not in srcs:
                 srcs.append(k)
-        txt = with_moves(it["text"], it["moves"])
+        txt = join_sentences(with_moves(g["text"], g["moves"]) for g in group)
         if srcs and not re.search(r"\bgenerated\b", it["raw"], re.I):
             for s in srcs:
                 frm.append({"from": slug(s), "name": s, "text": txt})
@@ -450,7 +539,7 @@ def parse_transitions_from(body, field_titles, self_title):
             if len(group) > 1:
                 creation_text += [with_moves(g["text"], g["moves"]) for g in group[1:]]
             else:
-                creation_text.append(txt)
+                creation_text.append(with_moves(it["text"], it["moves"]))
         i = j
     return creation, creation_text, frm
 
@@ -490,8 +579,7 @@ def overview_tables(text):
     return seed, common
 
 
-def summary_for(title, text, cat, num, quote):
-    intro = re.search(r"^'''%s'''.*$" % re.escape(title), text, re.M)
+def summary_for(title, text, cat, num, quote, effects):
     parts = []
     kind = f"{cat} Field" if cat else "Field"
     lead = f"{'An' if kind[0] in 'AEIOU' else 'A'} {kind}"
@@ -500,6 +588,12 @@ def summary_for(title, text, cat, num, quote):
     parts.append(lead + ".")
     if quote:
         parts.append(f"Battle message: “{quote}”")
+    # headline: the first plain general effect (taken from the page, not written here)
+    for e in effects:
+        if e["group"] in ("Type & move boosts", "Weakened", "Other") and "section" not in e \
+                and len(e["text"]) <= 140:
+            parts.append("Headline effect: " + e["text"].rstrip(".") + ".")
+            break
     return " ".join(parts)
 
 
@@ -526,8 +620,11 @@ def parse_field(title, page, field_titles, ov_seed, ov_common):
     effects = parse_effects(text, title)
     changes, terminated, to_notes = parse_transitions_to(
         secs.get("Transitions to Other Fields", ""), field_titles, title)
-    for n in to_notes:
-        effects.append({"group": "Field changes", "text": n})
+    for n, sub in to_notes:
+        e = {"group": "Field changes", "text": n}
+        if sub:
+            e["section"] = sub
+        effects.append(e)
     creation, creation_text, frm = parse_transitions_from(
         secs.get("Transitions from Other Fields", ""), field_titles, title)
 
@@ -545,7 +642,7 @@ def parse_field(title, page, field_titles, ov_seed, ov_common):
 
     entry = {
         "id": slug(title), "name": title,
-        "summary": summary_for(title, text, cat, num, quote),
+        "summary": summary_for(title, text, cat, num, quote, effects),
         "category": cat, "number": num, "message": quote,
         "effects": effects,
         "seeds": seeds, "seedItem": seed_item,
