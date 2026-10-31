@@ -61,6 +61,7 @@ class PBFields
   CHESSMOVES = [1, 2]
 end
 class PBWeather; SUNNYDAY = 1; RAINDANCE = 2; end
+class PBMoveData; TYPE = 2; end
 module PBEffects; Illusion = 77; end
 module PBExperience
   def self.pbGetLevelFromExperience(exp, _rate); (exp ** (1.0 / 3)).round; end
@@ -68,8 +69,9 @@ end
 
 class FEData; attr_accessor :fieldname; end
 class FakeCache
-  attr_accessor :pkmn_dex, :FEData
+  attr_accessor :pkmn_dex, :FEData, :pkmn_move
   def initialize
+    @pkmn_move = { 539 => [0, 85, 17] } # [FUNCTION, BASEDAMAGE, TYPE]
     @pkmn_dex = {
       25 => { Abilities: [9, 0], HiddenAbilities: 31, Type1: 13, Type2: 13, GrowthRate: 0 },
       63 => { Abilities: [28, 0], HiddenAbilities: 98, Type1: 14, Type2: 14, GrowthRate: 0 },
@@ -226,7 +228,7 @@ end
 
 def pbLoadTrainer(trainerid, trainername, partyid = 0) # Scripts/PokemonTrainers.rb
   opp = PokeBattle_Trainer.new(trainername, trainerid)
-  party = [PokeBattle_Pokemon.new(PBSpecies::ZOROARK, 30)]
+  party = [PokeBattle_Pokemon.new(PBSpecies::ZOROARK, 30, 0)]
   [opp, [], party]
 end
 
@@ -277,7 +279,7 @@ check "party size", s["party"].length == 3
 p0 = s["party"][0]
 check "party species/types/moves", p0["species"] == "PIKACHU" && p0["types"] == ["ELECTRIC"] &&
                                    p0["moves"].map { |m| m["id"] } == %w[THUNDERBOLT QUICKATTACK] && p0["moves"][0]["type"] == "ELECTRIC"
-check "party item + ability", p0["item"] == "LIGHTBALL" && p0["ability"] == "STATIC" && p0["abilityName"] == "Static"
+check "party item + ability", p0["item"] == "LIGHTBALL" && p0["ability"] == "LIGHTNINGROD" && p0["abilityName"] == "Lightning Rod"
 check "legacy ability computed without writing", s["party"][1]["ability"] == "UNAWARE" &&
                                                  legacy.instance_variable_get(:@abilityflag) == legacy_abil_before
 check "level computed without caching", s["party"][2]["level"] == 10 && lazy.instance_variable_get(:@poklevel).nil?
@@ -332,7 +334,7 @@ o = b1["opponents"][0]
 check "opponent shape", o["species"] == "ZOROARK" && o["types"] == ["DARK"] && o["hpPct"] == 100 && o["item"].nil?
 check "player battler shape", b1["player"][0]["species"] == "PIKACHU" && b1["player"][0]["moves"][0]["pp"] == 15
 check "field + weather", b1["field"]["id"] == 1 && b1["field"]["name"] == "Electric Terrain" && b1["field"]["const"] == "ELECTRICT" && b1["weather"].nil?
-check "opponent party", b1["opponentParty"] == [{ "slot" => 0, "species" => "ZOROARK", "form" => 0, "level" => 30, "fainted" => false }]
+check "opponent party", b1["opponentParty"] == [{ "slot" => 0, "species" => "ZOROARK", "dex" => 571, "form" => 0, "level" => 30, "fainted" => false }]
 b2 = $seen_states.select { |k, _| k == "command" }[1][1]["battle"]
 check "turn 2 snapshot", b2["turn"] == 2 && b2["weather"] == "RAINDANCE" && b2["opponents"][0]["hpPct"] == 60
 check "revealed move", b2["opponents"][0]["moves"].map { |m| m["id"] } == ["NIGHTDAZE"] && b2["opponents"][0]["moves"][0]["type"] == "DARK"
@@ -374,9 +376,16 @@ class << File
 end
 $game_player.x = 21; $t += 1.5; scene.update
 check "failed rename does not disable", !RFGLink.disabled?
+# Windows-style: replacing an existing target fails, a free name works -> delete + rename path
+class << File
+  def rename(a, b) raise Errno::EEXIST, b if File.exist?(b); real_rename(a, b); end
+end
+$game_player.x = 22; $t += 1.5; scene.update
+check "replace-in-place refused: delete + rename still lands", state["player"]["x"] == 22
 class << File
   alias_method :rename, :real_rename
 end
+$game_player.x = 21
 $t += 0.3; scene.update
 check "next tick retries and succeeds", state["player"]["x"] == 21
 
@@ -394,5 +403,11 @@ check "disabled mod stays quiet", state["seq"] == seq
 check "battle still runs while disabled", PokeBattle_Battle.new([pika], tparty, tr, 1).pbStartBattle == 1
 
 puts
-puts "#{$checks - $failures}/#{$checks} checks passed (output in #{OUT})"
+puts "#{$checks - $failures}/#{$checks} checks passed"
+if $failures.zero?
+  require "fileutils"
+  FileUtils.rm_rf(OUT)
+else
+  puts "output kept in #{OUT}"
+end
 exit($failures.zero? ? 0 : 1)

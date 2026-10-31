@@ -227,8 +227,15 @@ module RFGLink
     nil
   end
 
+  def self.move_type(id)
+    $cache.pkmn_move[id][PBMoveData::TYPE]
+  rescue StandardError
+    nil
+  end
+
   def self.move_h(id, pp = nil, totalpp = nil, type = nil)
     return nil if !id.is_a?(Integer) || id <= 0
+    type = move_type(id) unless type.is_a?(Integer)
     h = { "id" => const_name(:PBMoves, id), "name" => disp(:PBMoves, id) }
     h["pp"] = pp unless pp.nil?
     h["totalpp"] = totalpp unless totalpp.nil?
@@ -252,7 +259,7 @@ module RFGLink
     end
     abil = ability_of(pk)
     {
-      "species" => const_name(:PBSpecies, sp), "speciesName" => disp(:PBSpecies, sp),
+      "species" => const_name(:PBSpecies, sp), "speciesName" => disp(:PBSpecies, sp), "dex" => sp,
       "form" => iv(pk, :@form) || 0, "name" => iv(pk, :@name).to_s,
       "level" => level_of(pk), "hp" => iv(pk, :@hp), "totalhp" => iv(pk, :@totalhp),
       "status" => STATUS[iv(pk, :@status) || 0],
@@ -388,20 +395,25 @@ module RFGLink
       ',"battle":' + @frag["battle"] + ',"progress":' + @frag["progress"] + "}"
   end
 
-  # Atomic write: temp file + rename. A failed rename (Windows: the reader has
-  # the file open) is retried next time and does not disable the mod.
+  # Atomic write: temp file + rename. On Windows a rename onto a file the
+  # reader holds open fails for a moment: retry, then delete the target and
+  # rename; if it still fails, keep the snapshot dirty and try again on the
+  # next tick. None of this disables the mod.
   def self.write_state
     ensure_dir
     path = File.join(OUT_DIR, STATE_FILE)
     tmp = path + ".tmp"
     File.open(tmp, "wb") { |f| f.write(document) }
     ok = false
-    3.times do
+    4.times do |i|
       begin
+        # Windows: if the target cannot be replaced in place, remove it first
+        # (the reader tolerates a missing file for a moment).
+        File.delete(path) if i > 0 && File.exist?(path)
         File.rename(tmp, path)
         ok = true
         break
-      rescue Errno::EACCES, Errno::EBUSY, Errno::EPERM, Errno::EEXIST
+      rescue Errno::EACCES, Errno::EBUSY, Errno::EPERM, Errno::EEXIST, Errno::ENOENT
         next
       end
     end
@@ -487,7 +499,7 @@ module RFGLink
     hp, tot = iv(bt, :@hp) || 0, iv(bt, :@totalhp) || 0
     h = {
       "index" => idx, "partyIndex" => iv(bt, :@pokemonIndex),
-      "species" => const_name(:PBSpecies, sp), "speciesName" => disp(:PBSpecies, sp),
+      "species" => const_name(:PBSpecies, sp), "speciesName" => disp(:PBSpecies, sp), "dex" => sp,
       "form" => ill ? (iv(ill, :@form) || 0) : (iv(bt, :@form) || 0),
       "name" => ill ? iv(ill, :@name).to_s : iv(bt, :@name).to_s,
       "level" => iv(bt, :@level),
@@ -546,7 +558,7 @@ module RFGLink
     party2 = (iv(b, :@party2) || []).each_with_index.map do |pk, i|
       next nil if pk.nil?
       sp = iv(pk, :@species)
-      { "slot" => i, "species" => const_name(:PBSpecies, sp), "form" => iv(pk, :@form) || 0,
+      { "slot" => i, "species" => const_name(:PBSpecies, sp), "dex" => sp, "form" => iv(pk, :@form) || 0,
         "level" => level_of(pk), "fainted" => (iv(pk, :@hp) || 0) <= 0 }
     end.compact
     fld = iv(b, :@field)
