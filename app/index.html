@@ -1,9 +1,11 @@
+<meta charset="utf-8">
 <title>Reborn Field Guide</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+[hidden]{display:none!important}
 /* Layout: a dark smog header band over a two-pane field guide (index list | dossier), one column under 860px. */
 :root{
   --bg:#e3e8e7; --surface:#f2f5f4; --surface-2:#d8dfde; --line:#bcc7c6; --line-soft:#d0d8d7;
@@ -197,9 +199,9 @@ a.ty:hover{filter:brightness(1.08)}
 .panel-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px}
 .panel-h h2{font:800 24px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:4px}
-.tbtn{--c:var(--t-unk);--ci:var(--t-unk-i);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:2px;padding:8px 4px 7px;cursor:pointer;font:600 12px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;background:var(--surface);color:var(--fg)}
-.tbtn:hover{border-color:var(--c)}
-.tbtn[aria-pressed="true"]{background:var(--c);color:var(--ci);border-color:var(--c);box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--fg)}
+.tbtn{border:1px solid var(--line);border-left:6px solid var(--c,var(--t-unk));border-radius:2px;padding:8px 4px 7px;cursor:pointer;font:600 12px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;background:var(--surface);color:var(--fg)}
+.tbtn:hover{border-color:var(--c,var(--t-unk))}
+.tbtn[aria-pressed="true"]{background:var(--c,var(--t-unk));color:var(--ci,var(--t-unk-i));border-color:var(--c,var(--t-unk));box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--fg)}
 .pick-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:28px}
 .pick-line .big{font:800 22px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase}
 .ab-list{display:grid;gap:8px}
@@ -306,7 +308,7 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .regwrap svg{display:block;width:100%;max-width:560px;height:auto;margin-inline:auto}
 .reg-cap{font:600 13px/1.2 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--band-fg);padding:2px 4px 8px;min-height:24px}
 .reg-cell{fill:var(--surface-2);opacity:.12}
-.reg-pt{fill:var(--box-line);opacity:.55;cursor:pointer;stroke:var(--map-bg);stroke-width:1}
+.reg-pt{fill:var(--box-line);opacity:.3;cursor:pointer;stroke:var(--map-bg);stroke-width:1}
 .reg-pt.has{fill:var(--accent);opacity:1}
 .reg-pt:hover,.reg-pt:focus{opacity:1;stroke:var(--box-line);stroke-width:2;outline:none}
 .reg-pt.same{stroke:var(--box-line);stroke-width:1.5;stroke-dasharray:3 2;opacity:1}
@@ -336,7 +338,7 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .side .panel{gap:10px}
 .mlist{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px}
 .mlist li{display:flex;justify-content:space-between;gap:8px}
-.mlist .mono{color:var(--muted);font-size:12px}
+.mlist .mono{color:var(--muted);font-size:12px;white-space:nowrap}
 .foot{padding-block:18px 28px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
 .foot .wide{display:grid;gap:4px}
 
@@ -480,7 +482,7 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 'use strict';
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const slug=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const slug=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const pretty=id=>String(id??'').split('-').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const push=(m,k,v)=>{let a=m.get(k);if(!a)m.set(k,a=[]);if(!a.includes(v))a.push(v)};
@@ -527,7 +529,7 @@ function index(name,d){
   else if(name==='trainers') d.forEach(t=>{IX.tr.set(t.id,t);(t.team||[]).forEach(m=>push(IX.trMon,m.pokemon,t));(t.locations||[]).forEach(l=>push(IX.trArea,String(l.area),t))});
   else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);(i.locations||[]).forEach(l=>push(IX.itArea,String(l.area),{item:i,loc:l}))});
   else if(name==='sprites') IX.spr=d;
-  else if(name==='meta'){aliasPk();$('#ver').textContent=(d.version?'v'+d.version:'');footer()}
+  else if(name==='meta'){aliasPk();$('#ver').textContent=d.version?(/^\d/.test(d.version)?'v':'')+d.version:'';footer()}
 }
 const abName=x=>{const a=x&&IX.ab.get(slug(x));return a?a.name:(x||'')};
 function aliasPk(){const al=(DATA.meta||{}).pokemonAliases;if(!al||!DATA.pokemon)return;for(const k in al)if(!IX.pk.has(k)&&IX.pk.has(al[k]))IX.pk.set(k,IX.pk.get(al[k]))}
@@ -921,7 +923,7 @@ function renderAreaList(){
   const all=DATA.areas,match=new Set(all.filter(a=>(!wild||(a.encounters||[]).length)&&qs.every(w=>a._hay.includes(w))).map(a=>String(a.id)));
   const row=(a,d,path)=>`<a class="row arow" style="--d:${d}" href="#area-${esc(a.id)}" data-id="${esc(a.id)}"><span class="nm">${path?`<small>${esc(path)} ›</small>`:''}${esc(a.name)}</span><span class="ic">${a.fieldEffect?`<span class="fe" title="Field: ${esc(a.fieldEffect)}">◆</span>`:''}${(a.encounters||[]).length?`<span title="Wild species">${new Set(a.encounters.map(e=>e.pokemon)).size}w</span>`:''}${(a.trainers||[]).length?`<span title="Trainers">${a.trainers.length}t</span>`:''}<span>${esc(a.id)}</span></span></a>`;
   const byReg=new Map();all.forEach(a=>push(byReg,a.region||'Other areas',a));
-  const regs=[...byReg.keys()].sort((x,y)=>(x==='Other areas')-(y==='Other areas')||x.localeCompare(y));
+  const regs=[...byReg.keys()].sort((x,y)=>(x==='Other areas')-(y==='Other areas')||byReg.get(y).length-byReg.get(x).length||x.localeCompare(y));
   let h='',n=0;const filtering=qs.length||wild;
   regs.forEach(r=>{
     const list=byReg.get(r);let body='';
@@ -1097,13 +1099,13 @@ function setupPanZoom(st){
   vp.addEventListener('wheel',e=>{e.preventDefault();const r=vp.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*(e.deltaMode?0.05:0.0015)),e.clientX-r.left,e.clientY-r.top)},{passive:false});
   const P=new Map();let moved=0,last=null,captured=false;
   const mid=()=>{const v=[...P.values()];return [(v[0].x+v[1].x)/2,(v[0].y+v[1].y)/2,Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)]};
-  vp.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom'))return;if(e.button>0)return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(P.size===1){moved=0;captured=false}last=P.size===2?mid():null});
+  vp.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom')){moved=0;return}if(e.button>0)return;P.set(e.pointerId,{x:e.clientX,y:e.clientY});if(P.size===1){moved=0;captured=false}last=P.size===2?mid():null});
   vp.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
     if(P.size===1){moved+=Math.abs(dx)+Math.abs(dy);if(moved>5){if(!captured){captured=true;try{vp.setPointerCapture(e.pointerId)}catch(_){}vp.classList.add('drag')}S.tx+=dx;S.ty+=dy;apply()}}
     else if(P.size===2){moved=99;const m=mid(),r=vp.getBoundingClientRect();if(last){S.tx+=m[0]-last[0];S.ty+=m[1]-last[1];if(last[2]>0)zoomAt(m[2]/last[2],m[0]-r.left,m[1]-r.top);else apply()}last=m}});
   const up=e=>{P.delete(e.pointerId);last=P.size===2?mid():null;if(!P.size)vp.classList.remove('drag')};
   vp.addEventListener('pointerup',up);vp.addEventListener('pointercancel',up);
-  vp.addEventListener('click',e=>{if(moved>5){e.preventDefault();e.stopPropagation()}},true);
+  vp.addEventListener('click',e=>{if(moved>5&&!e.target.closest('.zoom')){e.preventDefault();e.stopPropagation()}},true);
   vp.addEventListener('keydown',e=>{const k=e.key,s=60;
     if(k==='ArrowLeft')S.tx+=s;else if(k==='ArrowRight')S.tx-=s;else if(k==='ArrowUp')S.ty+=s;else if(k==='ArrowDown')S.ty-=s;
     else if(k==='+'||k==='=')return zoomAt(1.4,...ctr());else if(k==='-'||k==='_')return zoomAt(1/1.4,...ctr());else if(k==='0')return fit();else return;
@@ -1113,7 +1115,7 @@ function setupPanZoom(st){
 /* ---------- footer, boot ---------- */
 function footer(){
   const m=DATA.meta||{};
-  $('#foot-in').innerHTML=`<span>${esc(m.game||'Pokémon Reborn')}${m.version?' v'+esc(m.version):''} data${m.generated?', generated '+esc(String(m.generated).slice(0,10)):''}. Extracted from the game files by the Pokémon Reborn Database.</span>
+  $('#foot-in').innerHTML=`<span>${esc(m.game||'Pokémon Reborn')}${m.version?(/^\d/.test(m.version)?' v':' ')+esc(m.version):''} data${m.generated?', generated '+esc(String(m.generated).slice(0,10)):''}. Extracted from the game files by the Pokémon Reborn Database.</span>
     ${(m.sources||[]).length?`<span>Sources: ${m.sources.map(s=>/^https:\/\//.test(s)?`<a href="${esc(s)}" target="_blank" rel="noopener">${esc(s.replace(/^https:\/\//,''))}</a>`:esc(s)).join(' · ')}</span>`:''}
     <span>A fan-made guide. Pokémon is owned by Nintendo, Game Freak and The Pokémon Company.</span>`;
 }
