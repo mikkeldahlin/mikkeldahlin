@@ -226,6 +226,8 @@ table.chart{border-collapse:collapse;font:500 12px/1 var(--f-mono)}
 table.chart th,table.chart td{width:30px;height:28px;text-align:center;padding:0;border:1px solid var(--line-soft)}
 table.chart th.ty{display:table-cell;border-radius:0;font-size:9.5px;letter-spacing:.02em;padding:0 3px;cursor:pointer}
 table.chart th.rh{text-align:left;padding:0 6px;width:auto}
+table.chart th.rh,table.chart .corner{position:sticky;left:0;z-index:1}
+table.chart .corner{background:var(--surface)}
 table.chart thead th.ty{height:34px}
 table.chart .corner{font:600 9px/1.2 var(--f-body);letter-spacing:.08em;color:var(--muted);text-transform:uppercase;padding:2px 4px}
 table.chart td.hl,table.chart tr.hl td{outline:1px solid var(--accent);outline-offset:-1px}
@@ -238,6 +240,8 @@ table.t th,table.t td{padding:6px 9px;text-align:left;border-bottom:1px solid va
 table.t th{font:600 11px/1.2 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
 table.t td.n,table.t th.n{text-align:right}
 table.t tr:last-child td{border-bottom:0}
+table.t.stick1 td:first-child,table.t.stick1 th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:inset -1px 0 0 var(--line-soft)}
+table.t.stick1 th:first-child{z-index:2;background:var(--surface-2)}
 table.t td.wrap{white-space:normal;min-width:180px}
 table.t .mvname{font-weight:500}
 .cat{font:600 11px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase}
@@ -1163,9 +1167,9 @@ function renderPickup(){
   pu.levels.forEach(b=>(b.items||[]).forEach(x=>{const k=x.item||'~'+slug(x.name);if(!seen.has(k)){seen.set(k,x);order.push(k)}}));
   const cell=(b,k)=>(b.items||[]).filter(x=>(x.item||'~'+slug(x.name))===k).reduce((s,x)=>s+(x.chance||0),0);
   el.innerHTML=`<a class="back" href="#items">← All items</a>
-    <div style="display:grid;gap:8px"><span class="h-sub">Ability</span><h1 class="h-title">Pickup table</h1>${pu.note?`<p class="desc">${esc(pu.note)}</p>`:''}</div>
+    <div style="display:grid;gap:8px"><span class="h-sub">Ability</span><h1 class="h-title">Pickup table</h1>${pu.note?`<p class="desc">${esc(String(pu.note).replace(/\s*[^.:]*:\s*$/,''))}</p>`:''}</div>
     <div class="sec"><h3>Chance by Pokémon level <span class="cnt">${pu.levels.length} bands</span></h3>
-    <div class="tbl"><table class="t"><thead><tr><th>Item</th>${pu.levels.map(b=>`<th class="n">Lv ${esc(b.levels)}</th>`).join('')}</tr></thead><tbody>
+    <div class="tbl"><table class="t stick1"><thead><tr><th>Item</th>${pu.levels.map(b=>`<th class="n">Lv ${esc(b.levels)}</th>`).join('')}</tr></thead><tbody>
     ${order.map(k=>{const x=seen.get(k),it=x.item&&IX.it.get(x.item);return `<tr><td>${it?`<a href="#item-${esc(it.id)}">${esc(it.name)}</a>`:esc(x.name)}</td>${pu.levels.map(b=>{const c=cell(b,k);return `<td class="n">${c?c+'%':'<span class="faint">–</span>'}</td>`}).join('')}</tr>`}).join('')}</tbody></table></div>
     <p class="note">From the ${pu.url?`<a href="${esc(pu.url)}" target="_blank" rel="noopener">${esc(pu.source||'wiki')}</a>`:esc(pu.source||'wiki')}${pu.license?`, ${esc(pu.license)}`:''}.</p></div>`;
 }
@@ -1184,7 +1188,7 @@ async function showMap(id){
     $('#map-pick').addEventListener('change',e=>{location.hash=e.target.value?'map-'+e.target.value:'map'});
     const sv=store.get('rfg-layers',null);
     if(sv&&typeof sv==='object')LAYERS.forEach(k=>{if(typeof sv[k]==='boolean'&&(k!=='items'||sv.itemsSeen))$('#ly-'+k).checked=sv[k]});
-    $$('#map-layers input').forEach(i=>i.addEventListener('change',()=>{saveLayers();if(MP.st)renderMarkers(MP.st);else if(MP.reg&&$('#reg-svg'))renderRegionLayers()}));
+    $$('#map-layers input').forEach(i=>i.addEventListener('change',()=>{saveLayers();if(MP.st)renderMarkers(MP.st);else if(MP.reg&&$('#reg-svg')){renderRegionLayers();if(MP.sel)renderRegionSide(MP.sel)}}));
   }
   const st=id&&(rm.stitched||[]).find(s=>s.id===id);
   $('#map-pick').value=st?st.id:'';
