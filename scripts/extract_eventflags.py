@@ -19,13 +19,15 @@ events.json was built from: pbItemBall / pbReceiveItem / pbTrainerBattle...):
          Trainers: page 1 "self switch A" is the post-battle chatter.
   switch the page turns a game switch ON after the call (command 121 [id, id, 0])
          and a later page is conditioned on that game switch (story battles).
+  var    the page sets / adds to a story variable after the call (command 122)
+         and a later page is conditioned on the variable reaching that value.
 
 The game keeps self switches as $game_self_switches[[map_id, event_id, "A"]],
 so the live link reports them per map and event, and the guide looks the event
 up here.
 
 Output (minified):
-  { "<areaId>": { "<ev>": "A" | {"switch": 2014} },
+  { "<areaId>": { "<ev>": "A" | {"switch": 2014} | {"var": 107, "min": 25} },
     "_trainers": { "<TRAINERTYPE>|<name>|<party>": "<trainers.json id>" },   (with --pbs)
     "_meta": { source, rules, stats } }
 
@@ -54,7 +56,11 @@ RULES = {
               "in a script after the call counts as command 123",
     "fallback": "no explicit ON after the call: the only later page conditioned on a self switch "
                 "(marked 'inferred' in stats)",
-    "value": "\"A\".. \"D\" = self switch letter; {\"switch\": n} = game switch id",
+    "variable": "command 122 [id, id, set|add, constant, n] after the call, and a later page "
+                "conditioned on that variable reaching a value the command produces (story progress "
+                "variables only grow); done when the variable is >= min",
+    "value": "\"A\".. \"D\" = self switch letter; {\"switch\": n} = game switch id is ON; "
+             "{\"var\": id, \"min\": n} = game variable id >= n",
 }
 SS_SCRIPT_RE = re.compile(
     r"pbSetSelfSwitch\(\s*(@event_id|\d+)\s*,\s*[\"'](\w)[\"']\s*,\s*true\s*\)"
@@ -64,19 +70,22 @@ SS_SCRIPT_RE = re.compile(
 def cond_of(pg):
     c = pg.get("condition")
     if not isinstance(c, M.RObj):
-        return None, set()
+        return None, set(), None
     ss = text(c.get("self_switch_ch")) if c.get("self_switch_valid") else None
     sw = set()
     for k in ("switch1", "switch2"):
         if c.get(k + "_valid"):
             sw.add(c.get(k + "_id"))
-    return ss, sw
+    var = (c.get("variable_id"), c.get("variable_value") or 0) if c.get("variable_valid") else None
+    return ss, sw, var
 
 
 def scan_page(pg, eid):
-    """Return (has_call, [self letters set after the call], [switch ids set after the call])."""
+    """Return (has_call, letters, switch ids, variable sets) changed after the call.
+
+    variable sets are (id, op, value): op "set" (= constant) or "add" (+= constant)."""
     cmds = [c for c in (pg.get("list") or []) if isinstance(c, M.RObj)]
-    call_at, letters, switches = None, [], []
+    call_at, letters, switches, variables = None, [], [], []
 
     def script_hits(s):
         out = []
@@ -106,9 +115,12 @@ def scan_page(pg, eid):
             a, b = p[0], p[1]
             if isinstance(a, int) and isinstance(b, int) and b - a < 50:
                 switches += list(range(a, b + 1))
+        elif code == 122 and len(p) >= 5 and p[0] == p[1] and p[3] == 0 and isinstance(p[4], int) \
+                and p[2] in (0, 1):
+            variables.append((p[0], "set" if p[2] == 0 else "add", p[4]))
         elif s is not None:
             letters += script_hits(s)
-    return call_at is not None, letters, switches
+    return call_at is not None, letters, switches, variables
 
 
 def flag_for(ev, eid, st):
@@ -116,11 +128,13 @@ def flag_for(ev, eid, st):
     conds = [cond_of(pg) for pg in pages]
     fallback = None
     for pi, pg in enumerate(pages):
-        has, letters, switches = scan_page(pg, eid)
+        has, letters, switches, variables = scan_page(pg, eid)
         if not has:
             continue
-        later_ss = {conds[j][0] for j in range(pi + 1, len(pages)) if conds[j][0]}
-        later_sw = set().union(*[conds[j][1] for j in range(pi + 1, len(pages))]) if pi + 1 < len(pages) else set()
+        later = range(pi + 1, len(pages))
+        later_ss = {conds[j][0] for j in later if conds[j][0]}
+        later_sw = set().union(*[conds[j][1] for j in later]) if pi + 1 < len(pages) else set()
+        later_var = [conds[j][2] for j in later if conds[j][2]]
         for L in letters:
             if L in later_ss:
                 st["self"] += 1
@@ -129,6 +143,18 @@ def flag_for(ev, eid, st):
             if s in later_sw:
                 st["switch"] += 1
                 return {"switch": s}
+        own = conds[pi][2]
+        for vid, op, n in variables:
+            if op == "set":
+                after = n
+            elif own and own[0] == vid:
+                after = own[1] + n
+            else:
+                continue
+            if any(v == vid and thr <= after and (not own or own[0] != vid or thr > own[1])
+                   for v, thr in later_var):
+                st["variable"] += 1
+                return {"var": vid, "min": after}
         if fallback is None:
             if letters:
                 fallback = ("self_unverified", letters[0])

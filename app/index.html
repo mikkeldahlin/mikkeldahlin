@@ -431,7 +431,8 @@ tr.is-beaten td a{color:var(--muted)}
 .mlay{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
 .mlay.has-find{grid-template-columns:minmax(250px,300px) minmax(0,1fr)}
 .mfind.list-pane{top:calc(var(--hh) + var(--mth,0px) + 10px);max-height:calc(100dvh - var(--hh) - var(--mth,0px) - 20px)}
-.mbody{min-width:0;display:grid;gap:0}
+.mbody{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.mbody>*{min-width:0}
 .mbody>.detail-pane{min-width:0}
 @media (max-width:860px){
   .mlay.has-find{grid-template-columns:minmax(0,1fr)}
@@ -468,6 +469,7 @@ tr.is-beaten td a{color:var(--muted)}
 .reg-heal path{stroke:var(--m4-fg);stroke-width:1.6;fill:none}
 .reg-gl{pointer-events:none}
 .reg-gl *{stroke:var(--map-bg);stroke-width:.9}
+.reg-gl .gdone{fill-opacity:.28;stroke-dasharray:1 1}
 .gw{fill:var(--t-grass)}.gt{fill:var(--box-line)}.gg{fill:var(--box-hot)}.gf{fill:var(--t-psychic)}.gi{fill:var(--t-electric)}.gm{fill:var(--t-water)}
 .reg-lb{pointer-events:none;font-family:var(--f-display);font-weight:600;letter-spacing:.05em;text-transform:uppercase;fill:var(--band-fg);paint-order:stroke;stroke:var(--map-bg);stroke-linejoin:round}
 .legend{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 10px;font-size:13.5px}
@@ -780,7 +782,7 @@ function index(name,d){
   else if(name==='trainers') d.forEach(t=>{IX.tr.set(t.id,t);(t.team||[]).forEach(m=>push(IX.trMon,m.pokemon,t));(t.locations||[]).forEach(l=>push(IX.trArea,String(l.area),t))});
   else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);});
   else if(name==='sprites') IX.spr=d;
-  else if(name==='fields'&&Array.isArray(d)) d.forEach(f=>{if(!f||!f.id)return;[f.id,slug(f.name),slug(String(f.name||'').replace(/\s+field$/i,''))].forEach(k=>{if(k&&!IX.fd.has(k))IX.fd.set(k,f)})});
+  else if(name==='fields'&&Array.isArray(d)) d.forEach(f=>{if(!f||!f.id)return;[f.id,slug(f.name),slug(String(f.name||'').replace(/\s+field$/i,'')),...(Array.isArray(f.aliases)?f.aliases.map(slug):[])].forEach(k=>{if(k&&!IX.fd.has(k))IX.fd.set(k,f)})});
   else if(name==='meta'){aliasPk();$('#ver').textContent=d.version?(/^\d/.test(d.version)?'v':'')+d.version:'';footer()}
 }
 const abName=x=>{const a=x&&IX.ab.get(slug(x));return a?a.name:(x||'')};
@@ -1597,7 +1599,6 @@ function closeXov(restore){
 
 const IGROUPS=[['tm','TMs and HMs'],['key','Key items'],['other','Other items']];
 function itemMoveHTML(item){if(!item.move)return '';const m=moveOf(item.move);return `${tchip(m.type,1)}<span>${esc(m.name)}</span>`}
-}
 
 /* ---------- ITEMS view ---------- */
 const POCKETS=['TMs & HMs','Key Items','Items','Medicine','Poké Balls','Battle Items','Berries','Crystals'];
@@ -1723,7 +1724,7 @@ async function showMap(id){
     $('#map-pick').addEventListener('change',e=>{location.hash=e.target.value?'map-'+e.target.value:'map'});
     const sv=store.get('rfg-layers',null);
     if(sv&&typeof sv==='object')LAYERS.forEach(k=>{if(typeof sv[k]==='boolean'&&(k!=='items'||sv.itemsSeen))$('#ly-'+k).checked=sv[k]});
-    $$('#map-layers input').forEach(i=>i.addEventListener('change',()=>{saveLayers();if(MP.st)renderMarkers(MP.st);else if(MP.reg&&$('#reg-svg')){renderRegionLayers();if(MP.sel)renderRegionSide(MP.sel)}}));
+    $$('#map-layers input').forEach(i=>i.addEventListener('change',()=>{saveLayers();xPopClose();if(MP.st)renderMarkers(MP.st);else if(MP.reg&&$('#reg-svg')){renderRegionLayers();if(MP.sel)renderRegionSide(MP.sel)}}));
   }
   const st=id&&(rm.stitched||[]).find(s=>s.id===id);
   $('#map-pick').value=st?st.id:'';
@@ -1731,8 +1732,8 @@ async function showMap(id){
   if(st)await showStitched(st);else{MP.st=null;await showRegion(rm)}
 }
 async function syncItemLayer(){
-  await load('items');
-  const n=IX.itArea.size,li=$('#ly-items'),was=li.disabled;
+  await Promise.all([load('items'),load('events')]);
+  const n=pickIndex().area.size,li=$('#ly-items'),was=li.disabled;
   li.disabled=!n;$('#ly-items-l').classList.toggle('off',!n);
   if(!n)li.checked=false;
   else if(was){const sv=store.get('rfg-layers',null);li.checked=sv&&sv.itemsSeen&&typeof sv.items==='boolean'?sv.items:true}
@@ -1744,19 +1745,20 @@ function areaInfo(id){
   id=String(id);const a=IX.ar.get(id)||{};
   const tids=new Set([...(a.trainers||[]),...(IX.trArea.get(id)||[]).map(t=>t.id)]);
   const gyms=[...tids].filter(i=>{const t=IX.tr.get(i);return t&&(IMPORTANT_KINDS.includes(t.kind)||t.important)});
-  return {a,mons:new Set((a.encounters||[]).map(e=>e.pokemon)),tids,gyms,field:a.fieldEffect||null,it:IX.itArea.get(id)||[]};
+  return {a,mons:new Set((a.encounters||[]).map(e=>e.pokemon)),tids,gyms,field:a.fieldEffect||null,it:areaPicks(id)};
 }
 function areaStats(id){
-  const i=areaInfo(id),tm=i.it.filter(x=>isTM(x.item)).length;
-  return {a:i.a,wild:i.mons.size,tr:i.tids.size,gyms:i.gyms.length,field:i.field,items:i.it.length-tm,tms:tm};
+  const i=areaInfo(id),tm=i.it.filter(x=>isTM(pkItem(x))).length,got=i.it.filter(x=>isPicked(x.key)).length;
+  return {a:i.a,wild:i.mons.size,tr:i.tids.size,gyms:i.gyms.length,field:i.field,items:i.it.length-tm,tms:tm,got,all:i.it.length};
 }
 function cellStats(ps){
-  const mons=new Set(),tids=new Set(),gyms=new Set(),fields=new Set();let items=0,tms=0;
-  ps.forEach(p=>(p.areas||[]).forEach(id=>{const i=areaInfo(id);i.mons.forEach(x=>mons.add(x));i.tids.forEach(x=>tids.add(x));i.gyms.forEach(x=>gyms.add(x));if(i.field)fields.add(i.field);i.it.forEach(x=>isTM(x.item)?tms++:items++)}));
-  return {wild:mons.size,tr:tids.size,gyms:gyms.size,fields:[...fields],items,tms};
+  const mons=new Set(),tids=new Set(),gyms=new Set(),fields=new Set(),seen=new Set();let items=0,tms=0,got=0;
+  ps.forEach(p=>(p.areas||[]).forEach(id=>{id=String(id);if(NO_AGG.has(id)||seen.has(id))return;seen.add(id);const i=areaInfo(id);i.mons.forEach(x=>mons.add(x));i.tids.forEach(x=>tids.add(x));i.gyms.forEach(x=>gyms.add(x));if(i.field)fields.add(i.field);
+    i.it.forEach(x=>{isTM(pkItem(x))?tms++:items++;if(isPicked(x.key))got++})}));
+  return {wild:mons.size,tr:tids.size,gyms:gyms.size,fields:[...fields],items,tms,got,all:items+tms};
 }
-const statTitle=s=>[s.wild&&s.wild+' wild species',s.tr&&s.tr+' trainers',s.gyms&&s.gyms+' gym leaders, bosses or rivals',(s.fields||[]).length?'field: '+s.fields.join(', '):s.field?'field: '+s.field:'',s.items&&s.items+' items',s.tms&&s.tms+' TMs or HMs'].filter(Boolean).join(', ');
-const statStr=s=>[s.wild&&s.wild+'w',s.tr&&s.tr+'t',s.gyms&&'★'+(s.gyms>1?s.gyms:''),((s.fields||[]).length||s.field)&&'◆',s.items&&s.items+'i',s.tms&&s.tms+'TM'].filter(Boolean).join(' ');
+const statTitle=s=>[s.wild&&s.wild+' wild species',s.tr&&s.tr+' trainers',s.gyms&&s.gyms+' gym leaders, bosses or rivals',(s.fields||[]).length?'field: '+s.fields.join(', '):s.field?'field: '+s.field:'',s.items&&s.items+' items',s.tms&&s.tms+' TMs or HMs',s.all&&s.got+' of '+s.all+' picked up'].filter(Boolean).join(', ');
+const statStr=s=>[s.wild&&s.wild+'w',s.tr&&s.tr+'t',s.gyms&&'★'+(s.gyms>1?s.gyms:''),((s.fields||[]).length||s.field)&&'◆',s.items&&s.items+'i',s.tms&&s.tms+'TM',s.all&&s.got&&'✓'+s.got+'/'+s.all].filter(Boolean).join(' ');
 
 /* region grid model: wards, colours, blocks (stitched composites and merged places), edges */
 const RC=32,RP=6,REG_N=9;
@@ -1831,8 +1833,8 @@ const GLYPH={
   trainers:(x,y)=>`<rect class="gt" x="${x+.3}" y="${y+.3}" width="4.6" height="4.6"/>`,
   wild:(x,y)=>`<circle class="gw" cx="${x+2.6}" cy="${y+2.6}" r="2.6"/>`,
   fields:(x,y)=>`<path class="gf" d="M${x+2.6} ${y-.6}l3.2 3.2-3.2 3.2-3.2-3.2z"/>`,
-  items:(x,y)=>`<circle class="gi" cx="${x+2.6}" cy="${y+2.6}" r="2.6"/>`,
-  tms:(x,y)=>`<rect class="gm" x="${x}" y="${y}" width="5.2" height="5.2" rx="1.2"/>`,
+  items:(x,y,d)=>`<circle class="gi${d?' gdone':''}" cx="${x+2.6}" cy="${y+2.6}" r="2.6"/>`,
+  tms:(x,y,d)=>`<rect class="gm${d?' gdone':''}" x="${x}" y="${y}" width="5.2" height="5.2" rx="1.2"/>`,
 };
 const GKEY=[['heal','Pokémon Center'],['gyms','Gym, boss or rival'],['trainers','Trainers'],['wild','Wild Pokémon'],['fields','Field effect'],['items','Items'],['tms','TMs and HMs']];
 const healGlyph=(cx,cy,r=5.2)=>`<g class="reg-heal"><circle cx="${cx}" cy="${cy}" r="${r}"/><path d="M${cx-r*.58} ${cy}h${r*1.16}M${cx} ${cy-r*.58}v${r*1.16}"/></g>`;
@@ -1895,7 +1897,8 @@ function renderRegionLayers(){
   if(on.length)R.blocks.forEach(b=>{const s=cellStats(b.sp),[x,y]=kxy(b.gl);
     const gl=[];if(on.includes('gyms')&&s.gyms)gl.push('gyms');if(on.includes('trainers')&&s.tr)gl.push('trainers');if(on.includes('wild')&&s.wild)gl.push('wild');
     if(on.includes('fields')&&s.fields.length)gl.push('fields');if(on.includes('items')&&s.items)gl.push('items');if(on.includes('items')&&s.tms)gl.push('tms');
-    gl.forEach((t,i)=>{h+=GLYPH[t](x*RC+3+(i%4)*6.6,y*RC+RC-8.5-Math.floor(i/4)*6.6)})});
+    const allGot=s.all>0&&s.got===s.all;
+    gl.forEach((t,i)=>{h+=GLYPH[t](x*RC+3+(i%4)*6.6,y*RC+RC-8.5-Math.floor(i/4)*6.6,allGot)})});
   g.innerHTML=h;
   layoutRegionLabels();
 }
@@ -1938,7 +1941,8 @@ function renderRegionSide(k){
     ${areas.length?alist(areas):''}</div>`).join('<hr style="border:0;border-top:1px solid var(--line-soft);width:100%">')}
     ${seen.size?'':'<p class="empty">No linked map.</p>'}
     ${here.length?`<div style="display:grid;gap:6px"><span class="lbl">Stitched maps here</span><ul class="mlist">${here.map(x=>`<li><a href="#map-${esc(x.id)}">${esc(x.name)}</a><span class="mono">${(x.areas||[]).length} maps</span></li>`).join('')}</ul></div>`:''}
-    ${statStr(s)?`<div class="agg">${s.wild?`<span>${s.wild} wild</span>`:''}${s.tr?`<span>${s.tr} trainers</span>`:''}${s.gyms?`<span>★ ${s.gyms}</span>`:''}${s.fields.map(f=>`<span>◆ ${esc(f)}</span>`).join('')}${s.items?`<span>${s.items} items</span>`:''}${s.tms?`<span>${s.tms} TM/HM</span>`:''}</div>`:''}
+    ${statStr(s)?`<div class="agg">${s.wild?`<span>${s.wild} wild</span>`:''}${s.tr?`<span>${s.tr} trainers</span>`:''}${s.gyms?`<span>★ ${s.gyms}</span>`:''}${s.items?`<span>${s.items} items</span>`:''}${s.tms?`<span>${s.tms} TM/HM</span>`:''}${s.all?`<span title="Items and TMs you have ticked as picked up">${s.got}/${s.all} picked up</span>`:''}</div>`:''}
+    ${s.fields.length?`<div class="chips" style="gap:6px"><span class="lbl" style="align-self:center">Field effects</span>${s.fields.map(fieldBadge).join('')}</div>`:''}
     <span class="mono note">${b.cells.length>1?`${b.cells.length} squares`:'grid '+esc(b.k.replace(',',', '))}</span></div>
     <div class="panel"><span class="lbl">Map key</span><div class="gkey">${GKEY.filter(([g])=>g==='heal'||g==='tms'?(g==='heal'||layerOn('items')):layerOn(g)).map(([g,l])=>`<span>${keySvg(g)}${esc(l)}</span>`).join('')}</div></div>
     <div class="panel"><span class="lbl">Wards and places <span class="cnt mono">${wards.length}</span></span><ul class="legend">${wards.map(x=>`<li><a href="#map" data-ward="${esc(x.name)}"${x.name===b.ward?' aria-current="true"':''}><span class="sw rc${x.color}" aria-hidden="true"></span><span class="lg-n">${esc(x.name)}</span></a></li>`).join('')}</ul></div>
@@ -1955,7 +1959,7 @@ async function showStitched(st){
     <div class="zoom"><button type="button" class="btn" id="zoom-in" aria-label="Zoom in">+</button><button type="button" class="btn" id="zoom-out" aria-label="Zoom out">−</button><button type="button" class="btn" id="zoom-fit" aria-label="Fit map" style="font-size:12px">fit</button><span class="zl" id="zoom-lv"></span></div></div>`;
   $('#st-boxes').innerHTML=(st.areas||[]).map(b=>`<rect class="box" data-a="${esc(b.area)}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}"></rect>`).join('');
   setupPanZoom(st);
-  await Promise.all([load('areas'),load('trainers'),load('items')]);
+  await Promise.all([load('areas'),load('trainers'),load('items'),load('events')]);
   if(MP.st!==st)return;
   renderMarkers(st);renderStitchedSide(st);
   const b=await loadBundle(st.bundle,SRC.regionmap);
@@ -1966,7 +1970,7 @@ async function showStitched(st){
 }
 function renderMarkers(st){
   const L=layerOn;
-  $('#st-mk').innerHTML=(st.areas||[]).map(b=>{const s=areaStats(b.area);let c='';
+  $('#st-mk').innerHTML=stEvMarkers(st)+(st.areas||[]).map(b=>{const s=areaStats(b.area);let c='';
     if(L('names'))c+=`<span class="mn">${esc(s.a.name||'Map '+b.area)}</span>`;
     if(L('wild')&&s.wild)c+=`<span class="mw" title="Wild species">${s.wild} wild</span>`;
     if(L('trainers')&&s.tr)c+=`<span class="mt" title="Trainers">${s.tr} trn</span>`;
@@ -1979,12 +1983,22 @@ function renderMarkers(st){
   $('#st-mk').onpointerover=e=>{const m=e.target.closest('.mk');hot(m?m.dataset.a:null)};
   $('#st-mk').onfocusin=e=>{const m=e.target.closest('.mk');hot(m?m.dataset.a:null)};
 }
+/* placed items and trainers on a stitched composite: the map's origin is (tx,ty) tiles, only its clip window [l,t,r,b] is drawn */
+function stEvMarkers(st){
+  const wi=layerOn('items'),wt=layerOn('trainers');if(!(wi||wt)||!DATA.events)return '';
+  const px=32*(st.scale||1);let h='';
+  (st.areas||[]).forEach(b=>{if(b.tx==null||b.ty==null)return;const c=Array.isArray(b.clip)&&b.clip.length===4?b.clip.map(Number):null;
+    evMarks(b.area).forEach(m=>{if(m.t==='i'?!wi:!wt)return;if(c&&!(m.x>=c[0]&&m.x<c[2]&&m.y>=c[1]&&m.y<c[3]))return;
+      const X=(+b.tx+m.x+.5)*px,Y=(+b.ty+m.y+.5)*px;if(X<0||Y<0||X>st.w||Y>st.h)return;
+      h+=evButton(m,String(b.area),X.toFixed(1)+'px',Y.toFixed(1)+'px',X/st.w*100,Y/st.h*100)})});
+  return h;
+}
 function renderStitchedSide(st){
   const rows=(st.areas||[]).map(b=>({b,s:areaStats(b.area)})).sort((x,y)=>(x.s.a.name||'').localeCompare(y.s.a.name||''));
   $('#map-side').innerHTML=`<div class="panel"><h2 style="font:800 22px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase">${esc(st.name)}</h2>
     <span class="note">${rows.length} maps stitched${st.scale&&st.scale!==1?`, shown at ${Math.round(st.scale*100)}% scale`:''}.</span>
     <ul class="mlist">${rows.map(({b,s})=>`<li><a href="#area-${esc(b.area)}" data-a="${esc(b.area)}">${esc(s.a.name||'Map '+b.area)}</a><span class="mono" title="${esc(statTitle(s))}">${esc(statStr(s))}</span></li>`).join('')}</ul></div>
-    <p class="note"><a href="#map">← Region grid</a></p>`;
+    <p class="note">Dots mark items (dotted ring: hidden) and figures mark trainers; turn them off with the Items and Trainers layers. Pick one to tick it off.</p>`;
   $('#map-side').onmouseover=e=>{const a=e.target.closest('a[data-a]');$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',!!a&&r.dataset.a===a.dataset.a))};
 }
 function setupPanZoom(st){
@@ -2019,6 +2033,71 @@ function panZoom(vp,stage,W,H,ui){
   return {S,apply,fit,zoomAt};
 }
 
+/* ---------- FIELDS view (data/fields.json; falls back to the field names in areas.json) ---------- */
+const FL={built:false,list:[],cur:null,all:[]};
+const txt=x=>x==null?'':typeof x==='string'||typeof x==='number'?String(x):Array.isArray(x)?x.map(txt).filter(Boolean).join('; '):typeof x==='object'?Object.values(x).map(txt).filter(Boolean).join(' — '):'';
+function fieldAreas(f){
+  const ids=new Set((f.areas||[]).map(String));
+  (DATA.areas||[]).forEach(a=>{if(a.fieldEffect&&(fieldOf(a.fieldEffect)===f||(f._name&&slug(a.fieldEffect)===f.id)))ids.add(String(a.id))});
+  return [...ids].filter(i=>IX.ar.has(i));
+}
+async function showFields(id,changed){
+  const [fs]=await Promise.all([load('fields'),load('areas')]);
+  if(!FL.built){
+    FL.built=true;
+    if(Array.isArray(fs)&&fs.length)FL.all=fs.filter(f=>f&&f.id&&f.name).slice().sort((a,b)=>a.name.localeCompare(b.name));
+    else{const names=[...new Set((DATA.areas||[]).map(a=>a.fieldEffect).filter(Boolean))].sort();FL.all=names.map(n=>({id:slug(n),name:n,_name:true,areas:[]}));FL.all.forEach(f=>{if(!IX.fd.has(f.id))IX.fd.set(f.id,f)})}
+    FL.all.forEach(f=>{f._areas=fieldAreas(f);f._hay=[f.name,f.id,txt(f.summary),...(f.effects||[]).map(e=>txt(e.text||e)),...f._areas.map(areaName)].join(' ').toLowerCase()});
+    let raf=0;$('#field-q').addEventListener('input',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderFieldList)});
+    renderFieldList();
+  }
+  let f=id&&(fieldOf(id)||FL.all.find(x=>x.id===id));
+  $('#field-split').classList.toggle('has-detail',!!f);
+  if(!f&&id){$('#field-split').classList.add('has-detail');FL.cur=null;$('#field-detail').innerHTML=`<a class="back" href="#fields">← All fields</a><h1 class="h-title">${esc(pretty(id))}</h1><p class="empty">This field is not described in this build.</p>`;setCurrent($('#field-list'),null);return}
+  if(!f)f=FL.all.find(x=>x.id===FL.cur)||FL.list[0]||FL.all[0];
+  if(!f){$('#field-detail').innerHTML='<p class="empty">No field effects in this build.</p>';return}
+  if(f.id!==FL.cur||!$('#field-detail').childElementCount){FL.cur=f.id;renderField(f)}
+  setCurrent($('#field-list'),f.id);
+  if(id&&!changed)scrollDetail('field-split');
+}
+function renderFieldList(){
+  const q=$('#field-q').value.trim().toLowerCase(),qs=q.split(/\s+/).filter(Boolean);
+  FL.list=FL.all.filter(f=>qs.every(w=>f._hay.includes(w)));
+  $('#field-count').textContent=`${FL.list.length} of ${FL.all.length} fields`;
+  $('#field-list').innerHTML=FL.list.map(f=>`<a class="row irow" href="#field-${esc(f.id)}" data-id="${esc(f.id)}"><span class="nm">${esc(f.name)}</span><span></span><span class="ic" title="Areas with this field">${f._areas.length?f._areas.length+' areas':''}</span></a>`).join('')||'<p class="empty" style="padding:12px">No fields match.</p>';
+  setCurrent($('#field-list'),FL.cur);
+}
+function renderField(f){
+  const groups=new Map();(f.effects||[]).forEach(e=>{const g=e&&typeof e==='object'?(e.group||'General'):'General';push(groups,g,e&&typeof e==='object'?txt(e.text):txt(e))});
+  const byReg=new Map();f._areas.forEach(a=>{const r=(IX.ar.get(a)||{}).region||'Other areas';push(byReg,r,a)});
+  const lic=f.license||'CC BY-SA 3.0',licUrl=/^https:\/\//.test(f.licenseUrl||'')?f.licenseUrl:'https://creativecommons.org/licenses/by-sa/3.0/';
+  const list=(xs)=>xs.length?`<ul class="note" style="margin:0;padding-left:18px;display:grid;gap:4px;font-size:14.5px;color:var(--fg)">${xs.map(x=>`<li>${x}</li>`).join('')}</ul>`:'';
+  const seeds=f.seeds==null?[]:Array.isArray(f.seeds)?f.seeds.map(x=>esc(txt(x))):[esc(txt(f.seeds))];
+  const flink=(id,nm)=>`<a href="${fieldHref(String(id))}">${esc(nm||(fieldOf(String(id))||{}).name||pretty(id))}</a>`;
+  const changes=(f.changes||[]).map(c=>c&&typeof c==='object'?`${c.to?'→ '+flink(c.to,c.name)+': ':''}${esc(txt(c.text||c.by))}`:esc(txt(c)));
+  const from=(f.from||[]).map(c=>c&&typeof c==='object'&&c.from?flink(c.from,c.name):esc(txt(c)));
+  const fromTxt=[...new Set((f.from||[]).map(c=>c&&c.text).filter(Boolean))];
+  const cn=Array.isArray(f.creationNotes)&&f.creationNotes.length?f.creationNotes:Array.isArray(f.creation)?f.creation:f.creation?[f.creation]:[];
+  const creation=cn.map(x=>esc(txt(x)));
+  const fn=f.fieldNote&&typeof f.fieldNote==='object'?f.fieldNote:null,cm=(Array.isArray(f.common)?f.common[0]:f.common)||null;
+  const fact=(k,v)=>v?`<div><dt>${k}</dt><dd>${v}</dd></div>`:'';
+  const facts=[fact('Category',esc(f.category||'')),fact('Battle message',f.message?'<i>“'+esc(f.message)+'”</i>':''),fact('Seed',esc(f.seedItem||'')),
+    cm?fact('Nature Power',esc(cm.naturePower||'')):'',cm?fact('Camouflage',esc(cm.camouflage||'')):'',cm?fact('Secret Power',esc(cm.secretPower||'')):'',
+    fn?fact('Field Notes',esc([fn.location,fn.available].filter(Boolean).join(', '))):''].join('');
+  $('#field-detail').innerHTML=`<a class="back" href="#fields">← All fields</a>
+    <div style="display:grid;gap:8px"><span class="h-sub">Field effect</span><h1 class="h-title">${esc(f.name)}</h1>${f.summary?`<p class="desc">${esc(txt(f.summary))}</p>`:''}</div>
+    ${facts?`<dl class="facts" style="margin:0">${facts}</dl>`:''}
+    ${f._name?'<p class="note">What this field does is not in this build yet. These are the areas that have it.</p>':''}
+    ${[...groups].map(([g,xs])=>`<div class="sec"><h3>${esc(g)} <span class="cnt">${xs.length}</span></h3>${list(xs.filter(Boolean).map(esc))}</div>`).join('')}
+    ${seeds.filter(Boolean).length?`<div class="sec"><h3>Seed</h3>${list(seeds.filter(Boolean))}</div>`:''}
+    ${changes.length?`<div class="sec"><h3>Changes into another field</h3>${list(changes)}</div>`:''}
+    ${from.length?`<div class="sec"><h3>Made from another field</h3><div class="linkset">${from.join('')}</div>${fromTxt.map(t=>`<p class="note" style="margin:0">${esc(t)}</p>`).join('')}</div>`:''}
+    ${(f.terminatedBy||[]).length?`<div class="sec"><h3>Ended by</h3><p class="note" style="margin:0;color:var(--fg)">${esc(f.terminatedBy.join(', '))}</p></div>`:''}
+    ${creation.filter(Boolean).length?`<div class="sec"><h3>How to create it</h3>${list(creation.filter(Boolean))}</div>`:''}
+    <div class="sec"><h3>Areas with this field <span class="cnt">${f._areas.length}</span></h3>${f._areas.length?[...byReg].sort((a,b)=>a[0].localeCompare(b[0])).map(([r,as])=>`<div class="xgrp"><span class="lbl">${esc(r)}</span><div class="linkset">${as.sort((a,b)=>areaName(a).localeCompare(areaName(b))||(+a-+b)).map(a=>`<a href="#area-${esc(a)}">${esc(areaName(a))}</a>`).join('')}</div></div>`).join(''):'<p class="empty">No area in this guide has it as its field.</p>'}</div>
+    ${f.url||f.source?`<p class="note">From ${/^https:\/\//.test(f.url||'')?`<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.source||'the Pokémon Reborn wiki')}</a>`:esc(f.source)}, <a href="${esc(licUrl)}" target="_blank" rel="noopener">${esc(lic)}</a>.</p>`:''}`;
+}
+
 /* ---------- footer, boot ---------- */
 function footer(){
   const m=DATA.meta||{};
@@ -2030,6 +2109,9 @@ function footer(){
 const hdr=$('#hdr');
 new ResizeObserver(()=>document.documentElement.style.setProperty('--hh',hdr.offsetHeight+'px')).observe(hdr);
 window.addEventListener('hashchange',route);
+document.addEventListener('keydown',e=>{if(curView!=='map'||$('#xov')||e.ctrlKey||e.metaKey)return;
+  const t=e.target,typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if((e.key==='Backspace'&&!typing&&!e.altKey)||(e.key==='ArrowLeft'&&e.altKey&&!typing)){if(MH.stack.length){e.preventDefault();mapBack()}}});
 footer();load('meta');
 route();
 </script>
