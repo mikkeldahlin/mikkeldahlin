@@ -584,7 +584,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
-    allow_reuse_address = False
+    # POSIX: SO_REUSEADDR only lets us rebind past TIME_WAIT after a restart, so the
+    # app keeps its port (and the browser keeps its per-origin settings).
+    # Windows: SO_REUSEADDR would let another process bind the same port, so leave it
+    # off there; Windows does not block a listener on TIME_WAIT anyway.
+    allow_reuse_address = os.name != "nt"
 
     def __init__(self, port, app_dir, data_dir, game_dir=None, autotick=True, verbose=False):
         self.app_dir = os.path.abspath(app_dir)

@@ -22,6 +22,8 @@
   --map-bg:#2a3336; --box-line:#f2f5f4; --box-hot:#c6a8ee;
   --ev-item:var(--t-electric); --ev-gift:var(--t-fairy); --ev-tr:var(--box-line);
   --shadow:0 1px 0 rgba(20,30,32,.06),0 6px 18px -10px rgba(20,30,32,.35);
+  /* live link: player marker and connection states */
+  --me:#d4002f; --me-fg:#ffffff; --me-ring:#ffffff; --live-on:#2b8a5c; --live-wait:#b07a0c; --live-off:#7d8a87;
 
   --t-normal:#a8a77a; --t-normal-i:#1b1b0f; --t-fire:#ee8130; --t-fire-i:#1f0d02;
   --t-water:#6390f0; --t-water-i:#06132d; --t-electric:#f7d02c; --t-electric-i:#2a2200;
@@ -64,6 +66,7 @@
   --cat-phys:#f08a5d; --cat-spec:#7fa6f0; --cat-stat:#98a3a1;
   --map-bg:#06090a; --box-line:#dbe4e3; --box-hot:#b99ce8;
   --shadow:0 1px 0 rgba(0,0,0,.3),0 8px 22px -12px rgba(0,0,0,.8);
+  --me:#ff4d63; --me-fg:#1c0004; --me-ring:#ffffff; --live-on:#5cc795; --live-wait:#e6b545; --live-off:#66746f;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101517; --surface:#172023; --surface-2:#202a2d; --line:#2f3c40; --line-soft:#253034;
@@ -79,6 +82,7 @@
   --cat-phys:#f08a5d; --cat-spec:#7fa6f0; --cat-stat:#98a3a1;
   --map-bg:#06090a; --box-line:#dbe4e3; --box-hot:#b99ce8;
   --shadow:0 1px 0 rgba(0,0,0,.3),0 8px 22px -12px rgba(0,0,0,.8);
+  --me:#ff4d63; --me-fg:#1c0004; --me-ring:#ffffff; --live-on:#5cc795; --live-wait:#e6b545; --live-off:#66746f;
   color-scheme:dark}
 
 *,*::before,*::after{box-sizing:border-box}
@@ -526,6 +530,103 @@ tr.is-beaten td a{color:var(--muted)}
 .foot{padding-block:18px 28px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
 .foot .wide{display:grid;gap:4px}
 
+/* live link (local app only): header chip, player marker, battle panel */
+.live{position:relative;flex:none}
+.live-chip{display:inline-flex;align-items:center;gap:6px;background:none;border:1px solid var(--band-line);border-radius:999px;color:var(--band-fg);padding:4px 10px 4px 8px;cursor:pointer;font:600 12px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.live-chip:hover,.live-chip[aria-expanded="true"]{border-color:var(--accent-line)}
+.ldot{width:8px;height:8px;border-radius:50%;background:var(--live-off);flex:none}
+.live[data-st="on"] .ldot{background:var(--live-on);box-shadow:0 0 0 3px color-mix(in srgb,var(--live-on) 30%,transparent)}
+.live[data-st="wait"] .ldot,.live[data-st="down"] .ldot{background:var(--live-wait)}
+.live-chip .lsv{color:var(--live-wait);font-family:var(--f-mono);letter-spacing:0}
+.live-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:45;width:min(360px,calc(100vw - 32px));max-height:calc(100dvh - var(--hh) - 24px);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:10px;padding:12px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);font-size:14px;line-height:1.4;text-transform:none;letter-spacing:0}
+.live-pop h2{font:800 20px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase}
+.live-pop p{margin:0}
+.live-pop .mono{font-size:12px;word-break:break-all}
+.live-pop ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:13.5px;color:var(--muted)}
+.live-pop .ctl .btn{font-size:13px;padding:5px 9px}
+.live-pop .btn:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+.live-warn{color:var(--warn-fg);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:2px;padding:6px 8px;font-size:13px}
+input[data-auto]{outline:2px dotted var(--live-on);outline-offset:2px}
+.chk:has(>input[data-auto])::after{content:"auto";font:500 10px/1 var(--f-mono);color:var(--live-on);border:1px solid currentColor;border-radius:2px;padding:2px 3px 1px}
+.me-tag{display:inline-flex;align-items:center;gap:5px;font:600 11px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--me);white-space:nowrap}
+.me-tag::before,.me-dot{content:"";width:9px;height:9px;border-radius:50%;background:var(--me);box-shadow:0 0 0 1.5px var(--me-ring),0 0 0 2.5px var(--me);flex:none}
+.mtool .me-dot{display:inline-block;width:8px;height:8px}
+.pm{position:absolute;z-index:5;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;transform:scale(var(--iz,1));transition:left .24s linear,top .24s linear}
+.pm svg{display:block;width:100%;height:100%;overflow:visible}
+.pm .pm-c{fill:var(--me);stroke:var(--me-ring);stroke-width:2.4}
+.pm .pm-s{fill:none;stroke:var(--map-bg);stroke-width:1.2;opacity:.8}
+.pm .pm-a{fill:var(--me-fg)}
+.pm::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--me);animation:pmp 1.7s ease-out infinite}
+@keyframes pmp{0%{transform:scale(.55);opacity:.95}100%{transform:scale(1.45);opacity:0}}
+.pm.stale{opacity:.6}.pm.stale::before{display:none}
+.stage rect.box.me{stroke:var(--me);stroke-opacity:1;stroke-width:2.5;stroke-dasharray:none}
+.reg-me{fill:none;stroke:var(--me);stroke-width:3;stroke-linecap:square;pointer-events:none}
+.reg-pm{pointer-events:none}
+.reg-pm circle{fill:var(--me);stroke:var(--me-ring);stroke-width:1.6}
+.reg-pm path{fill:var(--me-fg)}
+.reg-pm.stale{opacity:.6}
+.bp{position:fixed;z-index:40;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;width:min(430px,calc(100vw - 24px));max-height:calc(100dvh - var(--hh) - 24px);display:flex;flex-direction:column;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.bp-h{display:flex;align-items:stretch;background:var(--band);color:var(--band-fg);flex:none}
+.bp-tg{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;color:inherit;padding:9px 10px 9px 12px;cursor:pointer;text-align:left}
+.bp-tg::after{content:"";width:7px;height:7px;border:solid var(--band-muted);border-width:0 2px 2px 0;transform:rotate(-135deg) translate(-2px,-2px);flex:none;margin-left:auto}
+.bp-tg[aria-expanded="false"]::after{transform:rotate(45deg) translate(-2px,-2px)}
+.bp-k{font:800 18px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;flex:none}
+.bp-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;color:var(--band-muted)}
+.bp-x{flex:none;background:none;border:0;border-left:1px solid var(--band-line);color:var(--band-muted);width:40px;font:500 20px/1 var(--f-mono);cursor:pointer}
+.bp-x:hover,.bp-tg:hover .bp-t{color:var(--band-fg)}
+.bp-b{overflow-y:auto;overscroll-behavior:contain;padding:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-content:start}
+.bp-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px}
+.bp-meta .h-sub{font-size:13px}
+.bp-tr{font:800 22px/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;text-decoration:none;flex-basis:100%}
+.bm{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:8px;min-width:0}
+.bm-h{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.bm-h .nm{font:800 19px/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;text-decoration:none}
+.bm-h small{color:var(--muted);font-size:12px;margin-left:6px}
+.bm-h .lv{font:500 13px/1 var(--f-mono);color:var(--muted);margin-left:6px}
+.bm-h .chips{margin-top:5px;align-items:center}
+.bm .kv{font-size:13px}
+.hpl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;font:500 12px/1 var(--f-mono)}
+.hpb{height:8px;background:var(--surface-2);border-radius:1px;overflow:hidden}
+.hpb i{display:block;height:100%;background:var(--st-hi)}
+.hpb i.mid{background:var(--st-mid)}.hpb i.lo{background:var(--st-lo)}
+.stt{font:600 10.5px/1 var(--f-body);letter-spacing:.06em;padding:3px 5px 2px;border-radius:2px;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line)}
+.stg{font:500 11.5px/1 var(--f-mono);padding:3px 5px;border-radius:2px;border:1px solid var(--line)}
+.stg.up{color:var(--st-hi)}.stg.dn{color:var(--st-lo)}
+.bm.fnt,.bt.fnt{opacity:.5}
+.bp-sec{display:grid;gap:8px;min-width:0}
+.bp-sec>h3{font:600 12px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.bp-sec>h3 .cnt{font-family:var(--f-mono);letter-spacing:0;color:var(--faint);text-transform:none}
+table.mu{border-collapse:collapse;width:100%;font-size:13.5px}
+table.mu th,table.mu td{padding:4px 4px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:middle}
+table.mu th{font:600 10.5px/1.1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+table.mu td.x,table.mu th.x{text-align:center;width:52px}
+table.mu th.x{white-space:nowrap}
+table.mu td.x span{display:inline-block;min-width:36px;font:500 12.5px/1 var(--f-mono);padding:5px 3px;border-radius:2px}
+table.mu td.x .m1{border:1px solid var(--line)}
+table.mu .mvn{display:flex;align-items:center;gap:6px;min-width:0}
+table.mu .mvn b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.mu .p{font:12px/1 var(--f-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.tag{font:600 9.5px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:2px 4px 1px;border-radius:2px;border:1px solid currentColor;white-space:nowrap}
+.tag.stab{color:var(--accent)}.tag.best{color:var(--st-hi)}
+.btl{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.bt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;padding:6px 8px;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--surface)}
+.bt.act{border-color:var(--accent-line);box-shadow:inset 3px 0 0 var(--accent)}
+.bt .nm{font-weight:600;text-decoration:none}
+.bt .lv{font:500 12px/1 var(--f-mono);color:var(--muted);margin-left:5px}
+.bt .note{font-size:12.5px}
+.mvc{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;margin-right:6px;white-space:nowrap}
+.mvc.seen{font-weight:600}
+html.bp-on .foot{padding-bottom:72px}
+@media (min-width:1180px){
+  .bp.open{top:calc(var(--hh) + 12px)}
+  html.bp-dock main.gutter,html.bp-dock .foot{padding-right:calc(430px + 28px)}
+}
+@media (max-width:640px){
+  .bp{left:0;right:0;bottom:0;width:auto;max-height:62dvh;border-radius:8px 8px 0 0;border-left:0;border-right:0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .bp-b{padding:10px max(12px,env(safe-area-inset-left,0px))}
+  html.bp-on.bp-dock .foot{padding-bottom:calc(62dvh + 16px)}
+}
+
 @media (max-width:520px){
   .band-in{gap:4px 14px;padding-block:6px 0}
   .mark-k{font-size:22px}
@@ -553,6 +654,10 @@ tr.is-beaten td a{color:var(--muted)}
       <a href="#fields" data-v="fields">Fields</a>
     </nav>
     <span class="ver" id="ver"></span>
+    <div class="live" id="live" data-st="off" hidden>
+      <button type="button" class="live-chip" id="live-chip" aria-expanded="false" aria-controls="live-pop"><span class="ldot" aria-hidden="true"></span><span id="live-txt">Live</span><span class="lsv" id="live-sv" hidden></span></button>
+      <div class="live-pop" id="live-pop" role="dialog" aria-label="Live link to the game" hidden></div>
+    </div>
   </div>
 </header>
 <div class="banner" id="sample-banner" hidden><div class="gutter wide" id="sample-text"></div></div>
@@ -651,6 +756,8 @@ tr.is-beaten td a{color:var(--muted)}
       <button type="button" class="btn" id="mt-back" disabled aria-label="Back">← Back</button>
       <a class="btn" href="#map" id="mt-world">World map</a>
       <button type="button" class="btn" id="mt-find" aria-expanded="false" aria-controls="map-find">Find<span class="wd"> a place</span></button>
+      <button type="button" class="btn" id="mt-me" hidden><span class="me-dot" aria-hidden="true"></span>Me</button>
+      <button type="button" class="btn" id="mt-follow" aria-pressed="true" title="Move the map along when you change map in the game" hidden>Follow</button>
       <nav class="mcr" id="mt-crumbs" aria-label="Breadcrumb"></nav>
     </div>
     <div class="mlay" id="map-lay">
@@ -701,6 +808,11 @@ tr.is-beaten td a{color:var(--muted)}
   </section>
 </div></main>
 <footer class="foot gutter" id="foot"><div class="wide" id="foot-in"></div></footer>
+<aside class="bp" id="bp" aria-label="Current battle" hidden>
+  <div class="bp-h"><button type="button" class="bp-tg" id="bp-tg" aria-expanded="true" aria-controls="bp-b"><span class="bp-k" id="bp-k">Battle</span><span class="bp-t" id="bp-t"></span></button><button type="button" class="bp-x" id="bp-x" aria-label="Hide the battle panel" title="Hide (the Live menu can show it again)">×</button></div>
+  <div class="bp-b" id="bp-b"></div>
+</aside>
+<div class="sr" id="live-say" aria-live="polite"></div>
 
 <script>
 'use strict';
@@ -1300,7 +1412,7 @@ function renderArea(a){
   const id=String(a.id),kids=IX.kids.get(id)||[];
   $('#area-detail').innerHTML=`<div style="display:grid;gap:8px">${a.region?`<span class="h-sub">${esc(a.region)}</span>`:''}
     <h1 class="h-title">${esc(a.name)}</h1>
-    <div class="chips" style="gap:8px;align-items:center">${fieldBadge(a.fieldEffect)}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span></div></div>
+    <div class="chips" style="gap:8px;align-items:center">${fieldBadge(a.fieldEffect)}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span><span class="me-tag" id="area-me" hidden>You are here</span></div></div>
     <div class="amap" id="area-map" hidden><div class="mapimg" id="area-img"><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div><div class="abar" id="area-bar" hidden></div></div>
     ${kids.length?`<div class="sec"><h3>Inside <span class="cnt">${kids.length}</span></h3><div class="linkset">${kids.slice().sort((p,q)=>p.name.localeCompare(q.name)).map(k=>`<a href="#area-${esc(k.id)}">${esc(k.name)}</a>`).join('')}</div></div>`:''}
     <div class="sec" id="area-links" hidden></div>
@@ -1546,6 +1658,7 @@ async function renderAreaMap(a,im,src){
   bar.innerHTML=`${M.edges.length?`<div class="xrow"><span class="lbl">Exits</span>${M.edges.map(e=>`<a class="xb" href="#area-${esc(e.to)}" ${xdata(e)}><span aria-hidden="true">${XSIDES[e.side]}</span> ${esc(areaName(e.to))}<span class="sr">, ${e.side} edge${e.cond?', conditional':''}</span></a>`).join('')}</div>`:''}
     <div class="xtools">${xm||nEv?`<span class="lbl">Show</span>`:''}${xm?lyc('exits','Exits',AR.showX):''}${hasI?lyc('items','Items',AR.ly.items):''}${hasT?lyc('trainers','Trainers',AR.ly.trainers):''}${picks.length?progHTML(picks,'area:'+id):''}${src?`<button type="button" class="btn" id="area-expand">Larger map</button>`:''}</div>`;
   box.hidden=!(im||M.edges.length||M.doors.length);
+  livePaint();
   // connected areas, grouped
   const sec=$('#area-links'),seen=new Map(),add=(to,grp,o)=>{if(!seen.has(to))seen.set(to,{to,grp,...o});else if(!o.variant)seen.get(to).variant=false};
   M.edges.forEach(e=>{add(e.to,'ex',{tp:e.tp,side:e.side});e.alts.forEach(t=>add(t,'ex',{variant:true,side:e.side}))});
@@ -1582,7 +1695,7 @@ function openXov(pt){
     <div class="stage" id="xstage" style="width:${W}px;height:${H}px"><img src="${ex.src}" alt="" width="${W}" height="${H}" draggable="false"><div class="xo${ex.dense}">${marks}</div></div>
     <div class="zoom"><button type="button" class="btn" id="xz-in" aria-label="Zoom in">+</button><button type="button" class="btn" id="xz-out" aria-label="Zoom out">−</button><button type="button" class="btn" id="xz-fit" aria-label="Fit map" style="font-size:12px">fit</button><span class="zl" id="xz-lv"></span></div></div>`;
   document.body.appendChild(ov);document.documentElement.classList.add('xlock');
-  panZoom($('#xvp'),$('#xstage'),W,H,{zin:$('#xz-in'),zout:$('#xz-out'),zfit:$('#xz-fit'),lv:$('#xz-lv')});
+  AR.xz=panZoom($('#xvp'),$('#xstage'),W,H,{zin:$('#xz-in'),zout:$('#xz-out'),zfit:$('#xz-fit'),lv:$('#xz-lv')});
   if(pt&&ex.g)xPulse($('#xstage'),ex.g,pt);
   $('#xov-close').onclick=()=>closeXov(true);
   $$('[data-lyb]',ov).forEach(b=>b.onclick=()=>{const k=b.dataset.lyb;setLayer(k,!(k==='exits'?AR.showX:AR.ly[k]))});
@@ -1592,6 +1705,7 @@ function openXov(pt){
     if(e.key!=='Tab')return;const f=$$('button:not([hidden]),a[href],[tabindex="0"]',ov).filter(x=>x.offsetParent!==null||x===document.activeElement);if(!f.length)return;
     const i=f.indexOf(document.activeElement);if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&i===f.length-1){e.preventDefault();f[0].focus()}});
   $('#xvp').focus({preventScroll:true});
+  livePaint(true);
 }
 function closeXov(restore){
   const ov=$('#xov');if(!ov)return;if(AR.pop&&ov.contains(AR.pop.p))xPopClose();ov.remove();document.documentElement.classList.remove('xlock');
@@ -1855,7 +1969,7 @@ async function showRegion(rm){
   R.cells.forEach((ps,k)=>{if(ps.some(p=>p.heal)){const [x,y]=kxy(k);heal+=healGlyph(x*RC+RC-6.5,y*RC+6.5)}});
   const svg=`<svg id="reg-svg" viewBox="${-RP} ${-RP} ${VW} ${VH}" role="group" aria-label="Region town map. Each shape is a place, coloured by ward or town; shapes with a picture open a stitched map.">
     <defs>${defs}</defs><g>${dots}</g><g id="reg-cells">${R.blocks.length?blk:''}</g><path class="reg-edge" d="${regEdges(R).edge}"></path>
-    <g id="reg-glyphs" class="reg-gl"></g>${heal}<path class="reg-wsel" id="reg-wsel" d=""></path><path class="reg-csel" id="reg-csel" d=""></path><path class="reg-fo" id="reg-fo" d=""></path><g id="reg-labels"></g></svg>`;
+    <g id="reg-glyphs" class="reg-gl"></g>${heal}<path class="reg-wsel" id="reg-wsel" d=""></path><path class="reg-csel" id="reg-csel" d=""></path><path class="reg-fo" id="reg-fo" d=""></path><g id="reg-labels"></g><g id="reg-me"></g></svg>`;
   $('#map-main').innerHTML=`<div class="regwrap"><div class="reg-cap" id="reg-cap" aria-live="polite"></div>${svg}</div><p class="note" style="margin-top:8px">Colours group places by ward or town; thick lines are their borders. Shapes showing a map picture are stitched maps: pick one to open it. Pick any other place for its maps.</p>`;
   const svgEl=$('#reg-svg'),blkOf=e=>e.target.closest&&e.target.closest('.reg-blk');
   svgEl.addEventListener('pointerover',e=>{const r=blkOf(e);setCap(r?r.dataset.k:MP.sel)});
@@ -1872,6 +1986,7 @@ async function showRegion(rm){
   if(!MP.sel||!R.cells.has(MP.sel))MP.sel=[...R.cells.keys()].find(k=>R.cells.get(k).some(p=>p.heal))||[...R.cells.keys()][0];
   regPick(MP.sel);
   regImages(R,svgEl);
+  livePaint();
 }
 /* paint each composite's own stitched image into its block (cover-fit to the bounding box, clipped to the cells) */
 async function regImages(R,svgEl){
@@ -1983,6 +2098,7 @@ function renderMarkers(st){
   const hot=a=>$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',r.dataset.a===a));
   $('#st-mk').onpointerover=e=>{const m=e.target.closest('.mk');hot(m?m.dataset.a:null)};
   $('#st-mk').onfocusin=e=>{const m=e.target.closest('.mk');hot(m?m.dataset.a:null)};
+  livePaint();
 }
 /* placed items and trainers on a stitched composite: the map's origin is (tx,ty) tiles, only its clip window [l,t,r,b] is drawn */
 function stEvMarkers(st){
@@ -2003,7 +2119,7 @@ function renderStitchedSide(st){
   $('#map-side').onmouseover=e=>{const a=e.target.closest('a[data-a]');$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',!!a&&r.dataset.a===a.dataset.a))};
 }
 function setupPanZoom(st){
-  const vp=$('#vp'),Z=panZoom(vp,$('#stage'),st.w,st.h,{zin:$('#zoom-in'),zout:$('#zoom-out'),zfit:$('#zoom-fit'),lv:$('#zoom-lv')}),S=Z.S,apply=Z.apply;MP.pz=S;
+  const vp=$('#vp'),Z=panZoom(vp,$('#stage'),st.w,st.h,{zin:$('#zoom-in'),zout:$('#zoom-out'),zfit:$('#zoom-fit'),lv:$('#zoom-lv')}),S=Z.S,apply=Z.apply;MP.pz=S;MP.Z=Z;
   if(MP.focus){const b=(st.areas||[]).find(x=>String(x.area)===MP.focus);MP.focus=null;
     if(b){const w=vp.clientWidth,h=vp.clientHeight;S.z=clamp(Math.min(w/b.w,h/b.h)*.8,S.min,S.max);S.tx=w/2-(b.x+b.w/2)*S.z;S.ty=h/2-(b.y+b.h/2)*S.z;apply();
       setTimeout(()=>$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',r.dataset.a===b.area)),0)}}
@@ -2099,6 +2215,402 @@ function renderField(f){
     ${f.url||f.source?`<p class="note">From ${/^https:\/\//.test(f.url||'')?`<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.source||'the Pokémon Reborn wiki')}</a>`:esc(f.source)}, <a href="${esc(licUrl)}" target="_blank" rel="noopener">${esc(lic)}</a>.</p>`:''}`;
 }
 
+/* ---------- LIVE link (local app only) ----------
+   The local app (bridge/serve.py) answers api/info, saves ticks through api/progress and streams the game's state
+   (live/stream, with live/state.json as a fallback). The published artifact has none of this and never probes for it
+   (it is not served from 127.0.0.1), so live mode stays hidden there. Contract: bridge/STATE_FORMAT.md. */
+const LIVE={local:false,info:null,state:null,map:null,status:'off',es:null,pollT:0,pollN:0,down:false,popOpen:false,popSig:'',
+  follow:store.get('rfg-follow',true)!==false,lastManual:0,ourHash:null,lastPan:0,
+  battle:null,lastB:null,bpOpen:false,bpHide:false,bpSig:'',seen:new Map()};
+const isLocalHost=()=>location.protocol==='http:'&&/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+/* user navigation inside the Map tab pauses "follow" for a while; our own hash changes don't */
+window.addEventListener('hashchange',()=>{if(LIVE.ourHash&&location.hash===LIVE.ourHash){LIVE.ourHash=null;return}LIVE.ourHash=null;LIVE.lastManual=Date.now()});
+if(/^#(map-|areas?-)/.test(location.hash))LIVE.lastManual=Date.now();
+const liveNav=h=>{LIVE.ourHash='#'+h;location.hash=h};
+
+async function liveInit(){
+  if(!isLocalHost())return;
+  let info=null;
+  try{
+    /* only the guide's own server says "RebornFieldGuide/..." (so a plain static server gets no 404 for api/info) */
+    const h=await fetch('./',{method:'HEAD',cache:'no-store'});
+    if(!/^RebornFieldGuide\//.test(h.headers.get('server')||''))return;
+    const r=await fetch('api/info',{cache:'no-store'});
+    if(r.ok)info=await r.json();
+  }catch(e){return}
+  if(!info||info.app!=='reborn-field-guide')return;
+  LIVE.local=true;LIVE.info=info;
+  liveUI();
+  await progConnect();
+  if(info.game){await Promise.all([load('areas'),load('regionmap')]);liveSSE()}
+  setInterval(liveTick,1000);
+}
+
+/* ---- ticks saved on disk: Progress backend over GET/PATCH api/progress ---- */
+const SB={srv:{},pend:{},next:null,busy:false,fail:0,timer:0,updated:null,err:null,migrate:false};
+function sbAbsorb(o){
+  if(!o||typeof o!=='object'||!o.ticks||typeof o.ticks!=='object')return false;
+  const t={};for(const k in o.ticks){const v=o.ticks[k];if(v&&typeof v==='object'&&typeof v.on==='boolean')t[k]={on:v.on,src:v.src==='game'?'game':'user',t:+v.t||0}}
+  SB.srv=t;SB.updated=o.updated??null;return true;
+}
+/* what the page should show: the server's ticks with unsaved user changes on top */
+function sbEff(){const o={};for(const k in SB.srv)if(SB.srv[k].on)o[k]=true;for(const k in SB.pend){if(SB.pend[k].on)o[k]=true;else delete o[k]}return o}
+const SRV={
+  async load(){const o=SB.next;SB.next=null;if(o)sbAbsorb(o);return sbEff()},
+  async save(S){const eff=sbEff(),t=Date.now();let n=0;
+    /* an untick is saved as on:false (not deleted), so the game's auto-tick never brings it back */
+    for(const k in S)if(S[k]&&!eff[k]){SB.pend[k]={on:true,src:'user',t};n++}
+    for(const k in eff)if(!S[k]){SB.pend[k]={on:false,src:'user',t};n++}
+    if(n){sbKeep();sbFlush()}}
+};
+function sbKeep(){const n=Object.keys(SB.pend).length;try{if(n)localStorage.setItem('rfg-srv-pending',JSON.stringify(SB.pend));else localStorage.removeItem('rfg-srv-pending')}catch(e){}}
+async function sbFlush(){
+  if(SB.busy||!Object.keys(SB.pend).length)return;
+  clearTimeout(SB.timer);SB.busy=true;const send=Object.assign({},SB.pend);let res=null;
+  try{
+    const r=await fetch('api/progress',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(send)});
+    if(r.status===400){/* a key the server refuses: drop it rather than retry forever */
+      for(const k in send)if(SB.pend[k]===send[k])delete SB.pend[k];SB.err='Some ticks were refused by the guide server and not saved.';SB.fail=0}
+    else if(!r.ok)throw new Error('HTTP '+r.status);
+    else{res=await r.json();for(const k in send)if(SB.pend[k]===send[k])delete SB.pend[k];SB.fail=0;SB.err=null}
+  }catch(e){SB.fail++;SB.err='Could not save to the guide server. Retrying…';SB.timer=setTimeout(sbFlush,Math.min(30000,1000*2**SB.fail))}
+  SB.busy=false;sbKeep();
+  if(SB.migrate&&!Object.keys(SB.pend).length&&!SB.fail){SB.migrate=false;store.set('rfg-srv-migrated',true)}
+  if(res)progApply(res,true);
+  liveChip();
+  if(!SB.fail&&Object.keys(SB.pend).length)sbFlush();
+}
+async function progConnect(){
+  let o=null;try{const r=await fetch('api/progress',{cache:'no-store'});if(r.ok)o=await r.json()}catch(e){}
+  if(!o||!sbAbsorb(o)){SB.err='Could not read your saved ticks from the guide server; ticks stay in this browser for now.';liveChip();return false}
+  const kept=store.get('rfg-srv-pending',null);/* changes a closed page never got to save */
+  if(kept&&typeof kept==='object')for(const k in kept){const v=kept[k];if(v&&typeof v.on==='boolean')SB.pend[k]={on:v.on,src:'user',t:+v.t||Date.now()}}
+  if(!store.get('rfg-srv-migrated',false)){/* once: copy ticks this browser kept before the local app saved them on disk */
+    const loc=Progress.all(),t=Date.now();
+    for(const k in loc){const s=SB.srv[k];if(loc[k]&&!(s&&(s.on||s.src==='user'))&&!(k in SB.pend))SB.pend[k]={on:true,src:'user',t}}
+    SB.migrate=true;
+  }
+  SB.next=o;await Progress.useBackend(SRV);
+  if(Object.keys(SB.pend).length)sbFlush();else if(SB.migrate){SB.migrate=false;store.set('rfg-srv-migrated',true)}
+  amSoon();liveChip();return true;
+}
+function progApply(o,force){
+  if(!o||!o.ticks)return;
+  if(!force&&SB.updated!=null&&o.updated===SB.updated)return;
+  SB.next=o;Progress.useBackend(SRV).then(amSoon);
+}
+async function progFetch(){try{const r=await fetch('api/progress',{cache:'no-store'});if(r.ok){progApply(await r.json());sbRetryNow()}}catch(e){}}
+/* the server answers again: send unsaved ticks now instead of waiting out the backoff */
+function sbRetryNow(){if(SB.fail&&!SB.busy&&Object.keys(SB.pend).length){clearTimeout(SB.timer);sbFlush()}}
+/* ticks the game made get a small "auto" mark */
+function autoMark(root){
+  if(!LIVE.local)return;
+  $$('input[data-pick],input[data-beat]',root||document).forEach(i=>{const k=i.dataset.pick||'beat:'+i.dataset.beat,s=SB.srv[k],a=!!(s&&s.on&&s.src==='game'&&!SB.pend[k]);
+    if(a){if(!i.dataset.auto){i.dataset.auto='1';i.title='Ticked automatically from your game. Untick it if that is wrong.'}}
+    else if(i.dataset.auto){delete i.dataset.auto;i.removeAttribute('title')}});
+}
+let amRaf=0;const amSoon=()=>{if(LIVE.local&&!amRaf)amRaf=requestAnimationFrame(()=>{amRaf=0;autoMark()})};
+
+/* ---- the game's state ---- */
+function liveSSE(){
+  if(typeof EventSource!=='function'){livePoll();return}
+  let es;try{es=new EventSource('live/stream')}catch(e){livePoll();return}
+  LIVE.es=es;let errs=0,opened=0;
+  es.addEventListener('open',()=>{errs=0;LIVE.down=false;if(opened++)progFetch();sbRetryNow();liveChip()});
+  es.addEventListener('state',e=>{errs=0;let st=null;try{st=JSON.parse(e.data)}catch(_){return}liveState(st)});
+  es.addEventListener('progress',e=>{let o=null;try{o=JSON.parse(e.data)}catch(_){return}progApply(o)});
+  es.addEventListener('error',()=>{errs++;
+    if(es.readyState===2||errs>=4){es.close();LIVE.es=null;livePoll()}else{LIVE.down=errs>1;liveChip()}});
+}
+/* fallback: poll the file (750 ms), and the ticks every few seconds */
+async function livePoll(){
+  clearTimeout(LIVE.pollT);let wait=750;
+  try{
+    const r=await fetch('live/state.json',{cache:'no-store'});LIVE.down=false;sbRetryNow();
+    if(r.ok){const st=await r.json();const o=LIVE.state;if(!o||st.seq!==o.seq||st.t!==o.t)liveState(st)}else wait=3000;
+  }catch(e){LIVE.down=true;wait=5000}
+  if(++LIVE.pollN%4===0||wait>750)progFetch();
+  liveChip();LIVE.pollT=setTimeout(livePoll,wait);
+}
+const liveFresh=st=>!!st&&+st.t>0&&Date.now()-st.t<=(st.battle?180000:15000);/* battles allow long turns: no writes while you pick a move */
+function liveStatus(){if(!LIVE.info||!LIVE.info.game)return 'off';if(LIVE.down)return 'down';return liveFresh(LIVE.state)?'on':'wait'}
+function liveState(st){
+  if(!st||typeof st!=='object'||Array.isArray(st))return;
+  LIVE.state=st;const fresh=liveFresh(st);LIVE.status=liveStatus();
+  const p=st.player&&typeof st.player==='object'&&st.player.map!=null?st.player:null;
+  if(p&&fresh){const m=String(p.map);if(m!==LIVE.map){const was=LIVE.map;LIVE.map=m;liveFollow(was,m)}}
+  livePaint();
+  liveBattle(fresh||LIVE.battle?st.battle:null);
+  liveChip();
+}
+function liveTick(){
+  const s=liveStatus();if(s!==LIVE.status){LIVE.status=s;liveChip();livePaint()}
+  const a=$('#lp-age'),st=LIVE.state;if(a)a.textContent=st&&+st.t?'· updated '+liveAgo(st.t):'';
+}
+const liveAgo=t=>{const s=Math.max(0,Math.round((Date.now()-t)/1000));return s<60?s+' s ago':s<3600?Math.round(s/60)+' min ago':Math.round(s/3600)+' h ago'};
+
+/* ---- header chip and its popover ---- */
+function liveUI(){
+  $('#live').hidden=false;
+  const game=!!LIVE.info.game;$('#mt-me').hidden=!game;$('#mt-follow').hidden=!game;
+  $('#live-chip').onclick=()=>livePop(!LIVE.popOpen);
+  document.addEventListener('click',e=>{if(LIVE.popOpen&&!e.target.closest('#live'))livePop(false)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&LIVE.popOpen){livePop(false);$('#live-chip').focus()}});
+  $('#live-pop').addEventListener('click',e=>{const b=e.target.closest('[data-la]');if(!b)return;const a=b.dataset.la;
+    if(a==='me')liveGoMe();else if(a==='battle'){LIVE.bpHide=false;LIVE.bpOpen=true;bpRender(true)}
+    livePop(false)});
+  $('#live-pop').addEventListener('change',e=>{if(e.target.id==='lp-follow')setFollow(e.target.checked)});
+  $('#mt-me').onclick=liveGoMe;$('#mt-follow').onclick=()=>setFollow(!LIVE.follow);
+  $('#bp-tg').onclick=()=>{LIVE.bpOpen=!LIVE.bpOpen;bpRender(true)};
+  $('#bp-x').onclick=()=>{LIVE.bpHide=true;bpRender(true)};
+  /* panning a map by hand pauses keep-in-view for a few seconds */
+  ['pointerdown','wheel','keydown'].forEach(t=>document.addEventListener(t,e=>{if(e.target.closest&&e.target.closest('.vp'))LIVE.lastPan=Date.now()},{capture:true,passive:true}));
+  new MutationObserver(amSoon).observe(document.body,{childList:true,subtree:true});
+  Progress.onChange(amSoon);
+  setFollow(LIVE.follow,true);liveChip();
+}
+function setFollow(v,quiet){
+  LIVE.follow=!!v;if(!quiet)store.set('rfg-follow',LIVE.follow);
+  $('#mt-follow').setAttribute('aria-pressed',String(LIVE.follow));const c=$('#lp-follow');if(c)c.checked=LIVE.follow;
+  if(LIVE.follow&&!quiet){LIVE.lastManual=0;LIVE.lastPan=0;if(curView==='map')liveFollow(null,LIVE.map);livePaint()}
+}
+function livePop(open){
+  LIVE.popOpen=!!open;$('#live-pop').hidden=!open;$('#live-chip').setAttribute('aria-expanded',String(!!open));
+  if(open){LIVE.popSig='';livePopRender();liveTick()}
+}
+const LSTAT={on:['Live','Connected to your game'],wait:['Waiting for game','Waiting for the game'],off:['Live off','Live link off'],down:['Reconnecting','Lost the guide server']};
+function liveChip(){
+  if(!LIVE.local)return;
+  const s=liveStatus(),pend=Object.keys(SB.pend).length;LIVE.status=s;
+  $('#live').dataset.st=s;$('#live-txt').textContent=LSTAT[s][0];
+  const sv=$('#live-sv'),bad=!!SB.err;sv.hidden=!bad;sv.textContent=bad?(pend?pend+' unsaved':'!'):'';
+  $('#live-chip').title=LSTAT[s][1]+(bad?'. '+SB.err:'');
+  $('#mt-me').disabled=!LIVE.map;$('#mt-me').title=LIVE.map?'Show where you are: '+areaName(LIVE.map):'Show where you are (no position from the game yet)';
+  if(LIVE.popOpen)livePopRender();
+}
+function livePopRender(){
+  const I=LIVE.info||{},s=LIVE.status,st=LIVE.state,p=st&&st.player,pend=Object.keys(SB.pend).length;
+  const sig=[s,LIVE.map,SB.err,pend,!!LIVE.lastB,LIVE.bpHide,LIVE.follow].join('|');if(sig===LIVE.popSig)return;LIVE.popSig=sig;
+  const sep=String(I.dataDir||'').includes('\\')?'\\':'/';
+  const where=p&&p.map!=null?`You are on <a href="#area-${esc(p.map)}">${esc(areaName(p.map))}</a>${p.name?' as '+esc(p.name):''}.`:'';
+  const msg={on:where||'The game is running.',
+    wait:st?`${where} No update from the game for a while: it is paused, in a menu, or closed. Live mode carries on as soon as you walk.`:'Start Reborn with the mod installed, load your save and walk a step.',
+    off:'This guide was started without a game folder, so it cannot follow the game.',
+    down:'The page lost contact with the guide server. Check that its window (or terminal) is still open.'}[s];
+  $('#live-pop').innerHTML=`<h2>Live link</h2>
+    <p><b>${esc(LSTAT[s][1])}</b> <span class="note" id="lp-age"></span></p><p>${msg}</p>
+    ${I.game?`<label class="chk" for="lp-follow"><input type="checkbox" id="lp-follow"${LIVE.follow?' checked':''}> Follow me on the map</label>
+    <div class="ctl"><button type="button" class="btn" data-la="me"${p?'':' disabled'}>Show me on the map</button>${LIVE.lastB&&(LIVE.bpHide||!LIVE.battle)?`<button type="button" class="btn" data-la="battle">${LIVE.battle?'Show battle':'Show last battle'}</button>`:''}</div>`:''}
+    ${SB.err?`<p class="live-warn">${esc(SB.err)}${pend?` (${pend} waiting)`:''}</p>`:''}
+    <p class="note">Your ticks are saved on this computer, in <span class="mono">${esc((I.dataDir||'the data folder')+sep+'progress.json')}</span>.${I.autoTick?' Items and trainers tick themselves off when the game says they are done. Those ticks show a dotted ring or an <b>auto</b> mark; untick one and it stays unticked.':I.game?' Auto-ticking is off (--no-autotick).':''}</p>
+    <details${I.game&&s==='on'?'':' open'}><summary>How to set up the live link</summary>
+    <ol><li>Copy <span class="mono">bridge/mod/RebornFieldGuideLink.rb</span> into the game's <span class="mono">Data/Mods</span> folder. The launcher offers to do this.</li>
+    <li>Start the guide with your game folder. On Windows, double-click <span class="mono">bridge\\RebornFieldGuide.bat</span>. On macOS or Linux, run <span class="mono">python3 bridge/run.py --game "&lt;game folder&gt;"</span>.</li>
+    <li>Start or restart Reborn, load your save and walk a step. A folder <span class="mono">RFGLink</span> appears next to the game, and this badge turns green.</li>
+    <li>No game at hand? <span class="mono">python3 bridge/simulate.py --out &lt;folder&gt;/RFGLink</span> plays a short walk and battle; start the guide with <span class="mono">--game &lt;folder&gt;</span>.</li></ol>
+    <p class="note" style="margin-top:6px">Full steps and troubleshooting: <span class="mono">LOCAL_SETUP.md</span> in the guide folder.</p></details>`;
+}
+
+/* ---- player marker on the area map, its larger view, stitched maps and the world grid ---- */
+const DIRROT={2:180,4:270,6:90,8:0};
+function pmSet(host,left,top,p,stale){
+  let el=host.querySelector(':scope>.pm');
+  if(!el){el=document.createElement('span');el.className='pm';el.setAttribute('aria-hidden','true');
+    el.innerHTML='<svg viewBox="-13 -13 26 26"><circle class="pm-s" r="11.4"/><circle class="pm-c" r="9.2"/><g class="pm-r"><path class="pm-a" d="M0 -6.4L4.8 4 0 1.5-4.8 4z"/></g></svg>';host.appendChild(el)}
+  el.style.left=left;el.style.top=top;el.classList.toggle('stale',!!stale);
+  el.querySelector('.pm-r').setAttribute('transform',`rotate(${DIRROT[p.dir]??180})`);return el;
+}
+const pmDrop=host=>{if(host)$$(':scope>.pm',host).forEach(e=>e.remove())};
+/* pan a pannable view so (X,Y) stays inside it, unless the user panned it a moment ago */
+function pmKeep(vp,Z,X,Y,force){
+  if(!vp||!Z)return;if(!force&&(Date.now()-LIVE.lastPan<5000||vp.classList.contains('drag')))return;
+  const S=Z.S,w=vp.clientWidth,h=vp.clientHeight,sx=S.tx+X*S.z,sy=S.ty+Y*S.z,m=Math.min(70,w/5,h/5);
+  if(force||sx<m||sy<m||sx>w-m||sy>h-m){S.tx=w/2-X*S.z;S.ty=h/2-Y*S.z;Z.apply()}
+}
+function regBlockOf(aid){
+  const R=MP.reg;if(!R)return null;const pos=((R.rm||{}).areaPositions||{});let id=String(aid),g=0;
+  while(id&&g++<8){const xy=pos[id];if(Array.isArray(xy)){const k=xy[0]+','+xy[1],b=R.owner.get(k);if(b)return {b,k}}
+    const b=R.blocks.find(x=>x.areas.includes(id));if(b){const k=b.cells.find(c=>(R.cells.get(c)||[]).some(p=>(p.areas||[]).map(String).includes(id)))||b.k;return {b,k}}
+    const a=IX.ar.get(id);id=a&&a.parent!=null?String(a.parent):null}
+  return null;
+}
+function livePaint(force){
+  if(!LIVE.local)return;
+  const st=LIVE.state,p=st&&st.player&&st.player.map!=null?st.player:null,aid=p?String(p.map):null,stale=LIVE.status!=='on';
+  const x=p?+p.x:NaN,y=p?+p.y:NaN,ok=!!p&&Number.isFinite(x)&&Number.isFinite(y);
+  const keep=LIVE.follow||force;
+  /* one area: inline map and the larger view */
+  const ex=AR.ex,g=ex&&ex.g,on=ok&&g&&ex.id===aid&&AR.cur===aid&&x>=0&&y>=0&&x<g.tw&&y<g.th;
+  const tag=$('#area-me');if(tag)tag.hidden=!(ok&&AR.cur===aid);
+  const fr=$('#area-fr');if(fr){if(on)pmSet(fr,((x+.5)/g.tw*100).toFixed(3)+'%',((y+.5)/g.th*100).toFixed(3)+'%',p,stale);else pmDrop(fr)}
+  const xs=$('#xstage');if(xs){if(on&&ex.im){const X=(x+.5)/g.tw*ex.im.w,Y=(y+.5)/g.th*ex.im.h;pmSet(xs,X+'px',Y+'px',p,stale);if(keep)pmKeep($('#xvp'),AR.xz,X,Y,force)}else pmDrop(xs)}
+  /* stitched composite: the map's origin sits at (tx,ty) tiles; only its clip window is drawn */
+  const sg=$('#stage');
+  if(sg&&MP.st){const S0=MP.st,b=ok?(S0.areas||[]).find(q=>String(q.area)===aid):null;
+    $$('#st-boxes rect').forEach(r=>r.classList.toggle('me',!!b&&r.dataset.a===aid));
+    let put=false;
+    if(b&&b.tx!=null&&b.ty!=null){const c=Array.isArray(b.clip)&&b.clip.length===4?b.clip.map(Number):null,px=32*(S0.scale||1),X=(+b.tx+x+.5)*px,Y=(+b.ty+y+.5)*px;
+      if((!c||(x>=c[0]&&x<c[2]&&y>=c[1]&&y<c[3]))&&X>=0&&Y>=0&&X<=S0.w&&Y<=S0.h){put=true;pmSet(sg,X+'px',Y+'px',p,stale);if(keep)pmKeep($('#vp'),MP.Z,X,Y,force)}}
+    if(!put)pmDrop(sg)}
+  /* world grid: outline the block that holds the area, and a marker on its square */
+  const rg=$('#reg-me');
+  if(rg){let h='';const f=ok&&regBlockOf(aid);
+    if(f){const [cx,cy]=kxy(f.k),X=cx*RC+RC/2,Y=cy*RC+RC/2;
+      h=`<path class="reg-me" d="${f.b.edge}"/><g class="reg-pm${stale?' stale':''}" transform="translate(${X} ${Y})"><circle r="7.6"/><g transform="rotate(${DIRROT[p.dir]??180})"><path d="M0 -5.1L3.9 3.2 0 1.2-3.9 3.2z"/></g><title>You are here: ${esc(areaName(aid))}</title></g>`}
+    if(rg._h!==h){rg._h=h;rg.innerHTML=h}}
+}
+/* the player changed map: take the Map tab along (only when it is open and was not just used by hand) */
+function liveFollow(prev,m){
+  if(!LIVE.follow||curView!=='map'||!m||!LIVE.state)return;
+  if(Date.now()-LIVE.lastManual<10000||AR.pop)return;
+  const ae=document.activeElement;if(ae&&/^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)&&$('#v-map').contains(ae))return;
+  const aid=String(m);if(!IX.ar.has(aid))return;
+  const key=$('#v-map').dataset.key||'';
+  if(key==='area-'+aid)return;
+  if(key.startsWith('map-')&&MP.st&&(MP.st.areas||[]).some(b=>String(b.area)===aid))return;/* the stitched map shows it already */
+  const p=LIVE.state.player||{};
+  AR.arrive={to:aid,from:prev,tp:Number.isFinite(+p.x)&&Number.isFinite(+p.y)?[+p.x,+p.y]:null,t:Date.now(),ov:!!$('#xov')};
+  liveNav('area-'+aid);
+}
+function liveGoMe(){
+  const p=LIVE.state&&LIVE.state.player;if(!p||p.map==null)return;
+  const aid=String(p.map);LIVE.lastManual=0;LIVE.lastPan=0;
+  if(curView==='map'&&MP.st&&!$('#map-world').hidden&&(MP.st.areas||[]).some(b=>String(b.area)===aid)){livePaint(true);return}
+  if(curView==='map'&&AR.cur===aid&&!$('#area-detail').hidden){livePaint(true);const pm=$('#xov')?null:$('#area-fr>.pm');if(pm)pm.scrollIntoView({block:'center',behavior:reduceMotion()?'auto':'smooth'});return}
+  AR.arrive={to:aid,from:null,tp:Number.isFinite(+p.x)?[+p.x,+p.y]:null,t:Date.now(),ov:false};
+  liveNav('area-'+aid);
+}
+
+/* ---- battle panel ---- */
+const WEATHER={SUNNYDAY:'Sun',RAINDANCE:'Rain',SANDSTORM:'Sandstorm',HAIL:'Hail',SHADOWSKY:'Shadow Sky',STRONGWINDS:'Strong winds'};
+const STATUSN={SLEEP:'Asleep',POISON:'Poisoned',BURN:'Burned',PARALYSIS:'Paralysed',FROZEN:'Frozen'};
+const STGN={atk:'Atk',def:'Def',spa:'SpA',spd:'SpD',spe:'Spe',acc:'Acc',eva:'Eva'};
+const LV={ready:false,loading:null,dex:null,mv:null,ab:null,fd:null};
+const symKey=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function lvEnsure(){
+  if(LV.ready)return Promise.resolve();
+  return LV.loading||(LV.loading=Promise.all(['pokemon','moves','abilities','items','types','trainers','fields','sprites'].map(load)).then(()=>{
+    LV.dex=new Map();(DATA.pokemon||[]).forEach(p=>{if(p&&p.dex!=null)push(LV.dex,+p.dex,p)});
+    LV.mv=new Map();(DATA.moves||[]).forEach(m=>{if(m&&m.code)LV.mv.set(String(m.code).toUpperCase(),m)});
+    LV.ab=new Map();(DATA.abilities||[]).forEach(a=>{if(a&&a.id)LV.ab.set(symKey(a.id),a)});
+    LV.fd=new Map();(Array.isArray(DATA.fields)?DATA.fields:[]).forEach(f=>{if(f&&f.number!=null)LV.fd.set(+f.number,f)});
+    LV.ready=true}));
+}
+function lvType(s){if(!s)return null;const u=String(s).toUpperCase();if(u==='QMARKS')return '???';return IX.types.find(t=>t.toUpperCase()===u)||(u[0]+u.slice(1).toLowerCase())}
+const lvTypes=a=>[...new Set((Array.isArray(a)?a:[]).map(lvType).filter(Boolean))];
+/* species: dex = national number; form 0 = base entry, other forms matched by current types */
+function lvMon(b){
+  if(!b)return null;const L=(LV.dex&&LV.dex.get(+b.dex))||[];
+  if(!L.length)return IX.pk.get(slug(b.speciesName||b.species))||null;
+  const base=L.find(p=>!p.form)||L[0];if(!+b.form)return base;
+  const ty=lvTypes(b.types).sort().join('|');
+  return L.find(p=>p.form&&(p.types||[]).slice().sort().join('|')===ty)||base;
+}
+function lvAb(name,sym){if(name&&/\s\/\s/.test(name))return null;return (name&&IX.ab.get(slug(name)))||(sym&&LV.ab&&LV.ab.get(symKey(sym)))||null}
+const lvMove=m=>m?((m.id&&LV.mv&&LV.mv.get(String(m.id).toUpperCase()))||IX.mv.get(slug(m.name))||null):null;
+const lvMonDex=m=>(IX.pk.get(m.pokemon)||{}).dex;
+function lvTeam(B){const T=[];(Array.isArray(B.trainer)?B.trainer:[]).forEach(t=>{const tr=t&&t.id&&IX.tr.get(t.id);if(tr)(tr.team||[]).forEach(m=>T.push(m))});return T}
+function lvMatch(team,dex,slot,used){
+  if(slot!=null&&team[slot]&&lvMonDex(team[slot])===+dex&&!used.has(slot)){used.add(+slot);return team[slot]}
+  const j=team.findIndex((m,i)=>!used.has(i)&&lvMonDex(m)===+dex);if(j>=0){used.add(j);return team[j]}return null;
+}
+const bpWho=B=>{const ts=(Array.isArray(B.trainer)?B.trainer:[]).filter(Boolean).map(t=>{const tr=t.id&&IX.tr.get(t.id);return tr?trLabel(tr):[t.className,t.name].filter(Boolean).join(' ')});
+  if(ts.length)return ts.join(' & ');const o=(B.opponents||[])[0]||(B.opponentParty||[])[0];return B.wild?'Wild '+((o&&(o.speciesName||pretty(String(o.species||'').toLowerCase())))||'Pokémon'):'Battle'};
+const bpResult=B=>{const P=(B.opponentParty||[]).filter(Boolean),f=P.filter(o=>o.fainted).length;return P.length?`${f} of ${P.length} fainted`:''};
+function liveBattle(b){
+  b=b&&typeof b==='object'?b:null;
+  if(b){const isNew=!LIVE.battle||LIVE.battle.id!==b.id;
+    if(isNew){LIVE.bpOpen=true;LIVE.bpHide=false;LIVE.seen=new Map();lvEnsure().then(()=>{$('#live-say').textContent='Battle started: '+bpWho(b)})}
+    (b.opponents||[]).forEach(o=>{if(!o)return;let s=LIVE.seen.get(o.partyIndex);if(!s)LIVE.seen.set(o.partyIndex,s=new Set());(o.moves||[]).forEach(m=>{if(m&&m.id)s.add(String(m.id).toUpperCase())})});
+    LIVE.battle=b;LIVE.lastB=b}
+  else if(LIVE.battle){LIVE.battle=null;LIVE.bpOpen=false;$('#live-say').textContent='Battle over'}
+  bpRender();
+}
+function bpRender(force){
+  if(!LIVE.local)return;
+  const el=$('#bp'),B=LIVE.battle||LIVE.lastB,live=!!LIVE.battle,show=!!B&&!LIVE.bpHide;
+  el.hidden=!show;el.classList.toggle('open',show&&LIVE.bpOpen);
+  document.documentElement.classList.toggle('bp-dock',show&&LIVE.bpOpen);document.documentElement.classList.toggle('bp-on',show);
+  if(LIVE.popOpen)livePopRender();
+  if(!show)return;
+  $('#bp-tg').setAttribute('aria-expanded',String(LIVE.bpOpen));$('#bp-b').hidden=!LIVE.bpOpen;
+  if(!LV.ready){$('#bp-k').textContent=live?'Battle':'Last battle';$('#bp-b').innerHTML='<p class="loading">Loading battle data…</p>';lvEnsure().then(()=>bpRender(true));return}
+  $('#bp-k').textContent=live?'Battle':'Last battle';
+  $('#bp-t').textContent=[bpWho(B),live?(B.turn?'turn '+B.turn:'starting'):bpResult(B)].filter(Boolean).join(' · ');
+  const sig=JSON.stringify(B)+'|'+live;
+  if(!LIVE.bpOpen){if(force)LIVE.bpSig='';return}
+  if(!force&&sig===LIVE.bpSig)return;LIVE.bpSig=sig;
+  const body=$('#bp-b'),sc=body.scrollTop;body.innerHTML=bpHTML(B,live);body.scrollTop=sc;hydrate(body);
+}
+function bpHTML(B,live){
+  const trs=(Array.isArray(B.trainer)?B.trainer:[]).filter(Boolean);
+  const fld=B.field&&typeof B.field==='object'?B.field:null,F=fld?(LV.fd.get(+fld.id)||fieldOf(fld.name)):null;
+  const fName=F?F.name:fld&&fld.name,fHref=F?'#field-'+F.id:fName?fieldHref(fName):null;
+  const fLink=fName?`<a class="field" href="${esc(fHref)}" title="Field effect: read what ${esc(fName)} does">${esc(fName)}</a>`:'';
+  const opp=(Array.isArray(B.opponents)?B.opponents:[]).filter(Boolean),me=(Array.isArray(B.player)?B.player:[]).filter(b=>b&&!b.ally);
+  const team=lvTeam(B),used=new Set();
+  let h=`<div class="bp-meta">${trs.length?trs.map(t=>{const tr=t.id&&IX.tr.get(t.id),l=tr?trLabel(tr):[t.className,t.name].filter(Boolean).join(' ')||'Trainer';
+      return tr?`<a class="bp-tr" href="#battle-${esc(tr.id)}">${esc(l)}</a>${kindBadge(tr)}`:`<span class="bp-tr">${esc(l)}</span>`}).join(''):`<span class="bp-tr">${esc(bpWho(B))}</span>`}
+    ${fLink}${B.weather?`<span class="h-sub">Weather: ${esc(WEATHER[B.weather]||pretty(String(B.weather).toLowerCase()))}${+B.weatherTurns>0?` (${esc(B.weatherTurns)} turns)`:''}</span>`:''}${+B.trickRoom>0?`<span class="h-sub">Trick Room (${esc(B.trickRoom)})</span>`:''}
+    <span class="h-sub">${B.double?'Double':'Single'} battle${B.turn?' · turn '+esc(B.turn):''}${live?'':' · over'}</span></div>`;
+  h+=`<div class="bp-sec"><h3>${opp.length>1?'Opponents':'Opponent'} in battle</h3>${opp.map(o=>bpOpp(o,team,used)).join('')||'<p class="empty">Not sent out yet.</p>'}</div>`;
+  h+=me.map(pl=>bpMoves(pl,opp)).join('');
+  if(fName||B.weather)h+=`<p class="note" style="margin:0">${fName?`◆ <a href="${esc(fHref)}">${esc(fName)}</a> may change these numbers: Reborn fields boost, weaken or change the type of some moves.`:''}${B.weather?` ${esc(WEATHER[B.weather]||'The weather')} also changes some damage.`:''}</p>`;
+  h+=bpTeam(B,team);
+  return h;
+}
+function bpOpp(b,team,used){
+  const p=lvMon(b),ty=lvTypes(b.types),base=p?(p.types||[]):[],ab=lvAb(b.abilityName,b.ability),m=lvMatch(team,b.dex,b.partyIndex,used);
+  const nm=b.name||b.speciesName||(p?p.name:'?'),sp=b.speciesName||(p&&p.name)||'',hp=clamp(Math.round(+b.hpPct||0),0,100);
+  const changed=base.length&&ty.length&&base.slice().sort().join()!==ty.slice().sort().join();
+  const opts=ab?[]:[...new Set((m?(m.abilityIds||[]).map(i=>(IX.ab.get(i)||{}).name||pretty(i)):[...((p&&p.abilities)||[]),p&&p.hiddenAbility].filter(Boolean).map(abName)))];
+  const illusion=!ab&&!b.abilityName&&team.some(x=>(x.abilityIds||[]).includes('illusion')||/illusion/i.test(x.ability||''));
+  const stg=b.stages&&typeof b.stages==='object'?Object.entries(b.stages).filter(([k,v])=>STGN[k]&&+v):[];
+  const seen=(b.moves||[]).filter(Boolean);
+  const note=a=>{const r=ABIL[a];if(!r)return '';const ch=abilityChanges(ty,a);return ch.length||r.note?`<p class="note" style="margin:0"><b>${ab?esc(a):'If '+esc(a)}:</b> ${ch.map(([t,x,n])=>`${esc(t)} ${fmtX(x)}→${fmtX(n)}`).join(', ')}${r.note?(ch.length?'; ':'')+esc(r.note):''}</p>`:''};
+  return `<div class="bm${b.fainted?' fnt':''}">
+    <div class="bm-h">${p?sprImg(p.id,'md'):'<span></span>'}<div style="min-width:0">${p?`<a class="nm" href="#dex-${esc(p.id)}">${esc(nm)}</a>`:`<span class="nm">${esc(nm)}</span>`}${sp&&sp!==nm?`<small>${esc(sp)}</small>`:''}<span class="lv">Lv ${esc(b.level??'?')}</span>
+      <div class="chips">${ty.map(t=>tchip(t)).join('')}${changed?`<span class="note">normally ${esc(base.join('/'))}</span>`:''}${ty.length?`<a class="note" href="#types-${ty.map(slug).join('-')}">in Types →</a>`:''}</div></div></div>
+    <div class="hpl"><div class="hpb" role="img" aria-label="HP ${hp}%"><i class="${hp<=20?'lo':hp<=50?'mid':''}" style="width:${hp}%"></i></div><span>${b.fainted?'fainted':'HP '+hp+'%'}${b.status?` <span class="stt">${esc(STATUSN[b.status]||b.status)}</span>`:''}</span></div>
+    <dl class="kv"><dt>Ability</dt><dd>${ab?`<span title="${esc(ab.description||'')}">${esc(ab.name)}</span>`:opts.length?`<span class="faint">not shown;</span> ${esc(opts.join(' / '))}`:'<span class="faint">unknown</span>'}</dd>
+      ${m&&m.item?`<dt>Item</dt><dd>${esc(m.item)}</dd>`:''}
+      ${stg.length?`<dt>Stages</dt><dd class="chips">${stg.map(([k,v])=>`<span class="stg ${+v>0?'up':'dn'}">${esc(STGN[k])} ${+v>0?'+':''}${esc(v)}</span>`).join('')}</dd>`:''}
+      ${seen.length?`<dt>Used</dt><dd>${seen.map(x=>{const mv=lvMove(x);return `<span class="mvc">${tchip(lvType(x.type)||(mv&&mv.type),1)}${esc(x.name||(mv&&mv.name)||x.id)}</span>`}).join('')}</dd>`:''}</dl>
+    ${illusion?'<p class="note" style="margin:0">This trainer has a Pokémon with Illusion: if this one is in disguise, its real types differ.</p>':''}
+    ${ty.length?`<div class="bp-sec"><h3>Takes from each type${ab&&ABIL[ab.name]?` <span class="cnt">with ${esc(ab.name)}</span>`:''}</h3>${wkHTML(ty,{ab:ab?ab.name:null})}${ab?note(ab.name):opts.map(note).join('')}</div>`:''}</div>`;
+}
+function bpMoves(pl,opp){
+  const ut=lvTypes(pl.types),party=(LIVE.state&&Array.isArray(LIVE.state.party)?LIVE.state.party:[])[pl.partyIndex]||{};
+  const moves=(Array.isArray(pl.moves)&&pl.moves.length?pl.moves:Array.isArray(party.moves)?party.moves:[]).filter(Boolean);
+  const live=opp.filter(o=>!o.fainted),cols=(live.length?live:opp).map(o=>({o,ty:lvTypes(o.types),ab:lvAb(o.abilityName,o.ability)}));
+  const hp=pl.totalhp?`${pl.hp}/${pl.totalhp} HP`:`HP ${clamp(Math.round(+pl.hpPct||0),0,100)}%`;
+  const rows=moves.map(m=>{const mv=lvMove(m),t=lvType(m.type)||(mv&&mv.type),st=!!mv&&mv.category==='Status',pow=mv?mv.power:null;
+    const xs=cols.map(c=>st||!t||!c.ty.length?null:abMult(eff(t,c.ty),t,c.ab?c.ab.name:null)),stab=!st&&!!t&&ut.includes(t);
+    const score=st?0:Math.max(0,...xs.map(x=>x??0))*(+pow||0)*(stab?1.5:1)*(((mv&&+mv.accuracy)||100)/100);
+    return {m,mv,t,st,pow,xs,stab,score}});
+  const best=Math.max(0,...rows.map(r=>r.score));
+  const abs=cols.filter(c=>c.ab&&ABIL[c.ab.name]).map(c=>c.ab.name);
+  return `<div class="bp-sec"><h3>Your moves <span class="cnt">${esc(pl.name||pl.speciesName||'')} · Lv ${esc(pl.level??'?')} · ${esc(hp)}</span></h3>
+    ${rows.length&&cols.length?`<div class="tbl"><table class="mu"><thead><tr><th>Move</th><th class="p">Pow</th>${cols.map(c=>`<th class="x" title="Against ${esc(c.o.name||c.o.speciesName||'')}">vs ${esc(String(c.o.name||c.o.speciesName||'').slice(0,8))}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><span class="mvn">${tchip(r.t,1)||'<span></span>'}<b>${esc(r.m.name||(r.mv&&r.mv.name)||r.m.id)}</b>${r.stab?'<span class="tag stab" title="Same type as your Pokémon: 1.5× power">STAB</span>':''}${r.score>0&&r.score===best&&rows.length>1?'<span class="tag best" title="Highest power × type multiplier × STAB × accuracy">best</span>':''}</span></td><td class="p">${r.st?'status':esc(r.pow??'–')}</td>${r.xs.map(x=>`<td class="x">${x==null?'<span class="faint">–</span>':`<span class="${mcls(x)}">${fmtX(x)}×</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="empty">No moves known.</p>'}
+    ${abs.length?`<p class="note" style="margin:0">Counts ${esc([...new Set(abs)].join(', '))}.</p>`:''}</div>`;
+}
+function bpTeam(B,team){
+  const party=(Array.isArray(B.opponentParty)?B.opponentParty:[]).filter(Boolean),act=new Set((B.opponents||[]).filter(o=>o&&!o.fainted).map(o=>o.partyIndex)),used=new Set();
+  const list=party.length?party.map((o,i)=>({o,m:lvMatch(team,o.dex,o.slot??i,used)})):team.map((m,i)=>({o:{slot:i,dex:lvMonDex(m),level:m.level,fainted:false},m}));
+  if(!list.length)return '';
+  const tr=(Array.isArray(B.trainer)?B.trainer:[]).map(t=>t&&t.id&&IX.tr.get(t.id)).find(Boolean);
+  const left=list.filter(x=>!x.o.fainted).length;
+  return `<div class="bp-sec"><h3>${tr?'Their team':'Opponent team'} <span class="cnt">${left} of ${list.length} left</span></h3><ul class="btl">${list.map(({o,m})=>{
+    const p=m?IX.pk.get(m.pokemon):lvMon({dex:o.dex,form:o.form,types:[],speciesName:o.species}),id=m?m.pokemon:p&&p.id,slot=o.slot,seen=LIVE.seen.get(slot)||new Set();
+    const ab=m&&m.ability?m.ability:'',det=m?[m.item&&'Item: '+m.item,ab&&'Ability: '+ab,m.nature&&m.nature+' nature'].filter(Boolean):[];
+    return `<li class="bt${o.fainted?' fnt':''}${act.has(slot)?' act':''}">${id?sprImg(id,'sm'):'<span></span>'}<div style="min-width:0">${id?`<a class="nm" href="#dex-${esc(id)}">${esc(monName(id))}</a>`:`<span class="nm">${esc(pretty(String(o.species||'?').toLowerCase()))}</span>`}<span class="lv">Lv ${esc(o.level??(m&&m.level)??'?')}</span>${act.has(slot)?' <span class="tag stab">in battle</span>':''}${o.fainted?' <span class="note">fainted</span>':''}
+      <div class="chips" style="margin:3px 0">${tchips(p&&p.types,1)}</div>
+      ${det.length?`<div class="note">${det.map(esc).join(' · ')}</div>`:''}
+      ${m&&(m.moves||[]).length?`<div>${m.moves.map(mid=>{const x=moveOf(mid);return `<span class="mvc${x.code&&seen.has(String(x.code).toUpperCase())?' seen':''}" title="${esc([x.category,x.power?x.power+' power':''].filter(Boolean).join(', '))}">${tchip(x.type,1)}${esc(x.name)}</span>`}).join('')}</div>`:''}</div></li>`}).join('')}</ul>
+    ${tr?`<p class="note" style="margin:0"><a href="#battle-${esc(tr.id)}">Full team with EVs, IVs and stats →</a></p>`:party.length&&!B.wild?'<p class="note" style="margin:0">This trainer is not matched to the guide, so only species and levels are known.</p>':''}</div>`;
+}
+
 /* ---------- footer, boot ---------- */
 function footer(){
   const m=DATA.meta||{};
@@ -2115,4 +2627,5 @@ document.addEventListener('keydown',e=>{if(curView!=='map'||$('#xov')||e.ctrlKey
   if((e.key==='Backspace'&&!typing&&!e.altKey)||(e.key==='ArrowLeft'&&e.altKey&&!typing)){if(MH.stack.length){e.preventDefault();mapBack()}}});
 footer();load('meta');
 route();
+liveInit();
 </script>
