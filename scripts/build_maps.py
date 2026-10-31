@@ -7,6 +7,7 @@ Usage (run isolated, inputs are untrusted):
         --db   /tmp/claude-0/src/reborn-db \
         --site /tmp/claude-0/src/reborn-db-site \
         --out  app \
+        [--links app/data/links.json] \
         [--report /path/report.json] [--preview-dir /path/previews] [--jobs 4]
 
 Reads
@@ -15,6 +16,8 @@ Reads
   <db>/PBS/metadata.txt     per-map MapPosition (region,x,y)
   <site>/area/<id>.html     area name, parent, "Outdoor map?"
   <site>/img/area/<id>.png  rendered map (32 px tiles)
+  --links links.json        optional: edge warps between outdoor maps (see
+                            "warp stitching" below) join more maps into composites
 
 Writes
   <out>/data/regionmap.json   grid, points, stitched composites (data/SCHEMA.md)
@@ -335,6 +338,380 @@ def seam_check(c, dims, img_dir, search=6):
     return {"stated": stated, "bestShift": best[1], "bestScore": best[0]}
 
 
+# ---------------------------------------------------------------- warp stitching
+# Reborn City's wards and many towns are joined by warp events near a map edge
+# (step off the edge, land near the neighbour's opposite edge) rather than by
+# seamless connections.  Their maps usually carry a margin that repeats the
+# neighbour's scenery, so the warp pair gives an offset that the pixels in that
+# shared margin can confirm.  Each accepted pair is cut at a seam between the two
+# warp lines, so neither map's margin is drawn over the other's playable area.
+WARP_MARGIN = 20        # tiles: a warp run this close to a border is an edge exit
+WARP_MAX_DIFF = 15.0    # mean abs RGB difference in the shared margin to accept
+WARP_SEARCH = 2         # tiles searched around the warp-derived offset
+WARP_MIN_TILES = 20     # opaque tiles both maps must share to compare pixels
+OVERLAP_TOL = 2         # tiles of overlap tolerated between clipped maps
+SCORE_FACTOR = 4        # downscale used for pixel comparison (8 px per tile)
+SIDES = ("L", "R", "T", "B")
+OPP = {"L": "R", "R": "L", "T": "B", "B": "T"}
+SIDE_NAME = {"left": "L", "right": "R", "top": "T", "bottom": "B"}
+
+
+def area_tree(areas):
+    """top[m]: the root's child on m's parent chain (the place, e.g. Reborn City);
+    era[m]: True for story variants filed under a "Neo ..." area."""
+    top, era = {}, {}
+    for m in areas:
+        chain, cur, hops = [m], areas[m]["parent"], 0
+        while cur and cur in areas and hops < 30:
+            chain.append(cur)
+            cur, hops = areas[cur]["parent"], hops + 1
+        top[m] = chain[-2] if len(chain) >= 2 else chain[-1]
+        era[m] = any(areas[c]["name"].startswith("Neo ") for c in chain)
+    return top, era
+
+
+def warp_candidates(links, areas, dims, top, era, log):
+    """Edge-like warps between two outdoor maps of the same place and era.
+
+    links.json marks warps on the last tile row/column as kind "edge"; the wards'
+    exits sit on the inner edge of a scenery margin and come through as "door"
+    (without a door/cave hint), so both kinds are tried and judged by geometry:
+    the run must lie within WARP_MARGIN of one border of A and land within
+    WARP_MARGIN + 2 of the opposite border of B.  d is B's origin in A's tile
+    space, taking the run's middle tile (the one tx,ty belongs to) to coincide
+    with the landing tile.
+    """
+    sizes = links.get("_meta", {}).get("mapSizes", {})
+    skipped = collections.Counter()
+
+    def usable(m):
+        a = areas.get(m)
+        if not a or not a["outdoor"] or m not in dims or a["name"] == "REMOVED":
+            return False
+        if m in sizes and tuple(sizes[m]) != tuple(dims[m]):
+            skipped[f"size mismatch {m}"] += 1
+            return False
+        return True
+
+    out = []
+    for a, lst in links.items():
+        if a == "_meta" or not isinstance(lst, list) or not usable(a):
+            continue
+        W, H = dims[a]
+        for l in lst:
+            b = str(l.get("to"))
+            if l.get("kind") not in ("edge", "door") or b == a or not usable(b):
+                continue
+            if l.get("tx") is None or l.get("ty") is None or l.get("npc"):
+                continue
+            if l.get("hint") in ("door", "cave"):
+                continue
+            if top.get(a) != top.get(b) or era.get(a) != era.get(b):
+                skipped["different place or era"] += 1
+                continue
+            x, y, w, h, tx, ty = (int(l[k]) for k in ("x", "y", "w", "h", "tx", "ty"))
+            wb, hb = dims[b]
+            dist = {"L": x, "R": W - x - w, "T": y, "B": H - y - h}
+            land = {"L": wb - 1 - tx, "R": tx, "T": hb - 1 - ty, "B": ty}
+            opts = [(dist[s] + land[s], s) for s in SIDES
+                    if dist[s] <= WARP_MARGIN and land[s] <= WARP_MARGIN + 2
+                    and (h >= w if s in "LR" else w >= h)]
+            if not opts:
+                skipped["not at a border"] += 1
+                continue
+            side = min(opts)[1]
+            mx, my = x + w // 2, y + h // 2
+            out.append({"a": a, "b": b, "side": side, "d": (mx - tx, my - ty),
+                        "line": x if side in "LR" else y, "len": max(w, h),
+                        "cond": bool(l.get("conditional")), "kind": l["kind"]})
+    for k, v in sorted(skipped.items()):
+        log.append(f"warp links skipped ({k}): {v}")
+    return out
+
+
+class PixelScorer:
+    """Mean abs RGB difference where two maps overlap at a tile offset."""
+
+    def __init__(self, img_dir):
+        self.img_dir, self.cache = img_dir, {}
+
+    def arr(self, m):
+        if m not in self.cache:
+            with Image.open(os.path.join(self.img_dir, m + ".png")) as im:
+                self.cache[m] = np.asarray(shrink(im, SCORE_FACTOR), dtype=np.int16)
+        return self.cache[m]
+
+    def score(self, a, b, d, win=None):
+        """(score or None, shared opaque tiles) with B's origin at d in A's tiles,
+        optionally only inside win = (x0, y0, x1, y1) in A's tiles."""
+        p = TILE // SCORE_FACTOR
+        A, B = self.arr(a), self.arr(b)
+        ha, wa = A.shape[:2]
+        hb, wb = B.shape[:2]
+        dx, dy = d[0] * p, d[1] * p
+        x0, x1 = max(0, dx), min(wa, dx + wb)
+        y0, y1 = max(0, dy), min(ha, dy + hb)
+        if win:
+            x0, y0 = max(x0, win[0] * p), max(y0, win[1] * p)
+            x1, y1 = min(x1, win[2] * p), min(y1, win[3] * p)
+        if x1 <= x0 or y1 <= y0:
+            return None, 0
+        xa = A[y0:y1, x0:x1]
+        xb = B[y0 - dy:y1 - dy, x0 - dx:x1 - dx]
+        m = (xa[..., 3] > 0) & (xb[..., 3] > 0)
+        n = int(m.sum()) // (p * p)
+        if n < WARP_MIN_TILES:
+            return None, n
+        return float(np.abs(xa[m][:, :3] - xb[m][:, :3]).mean()), n
+
+
+def warp_pairs(cands, scorer, log):
+    """Collapse warp links per map pair, vote on the offset, check pixels.
+
+    Returns accepted pairs {a, b, d (B origin in A tiles), side (B seen from A),
+    linesA, linesB, cond, n, recip, score, verified} and rejected descriptions.
+    """
+    group = collections.defaultdict(list)
+    for c in cands:
+        a, b = sorted((c["a"], c["b"]), key=int)
+        group[(a, b)].append(c)
+    pairs, rejected = [], []
+    for (a, b), cs in sorted(group.items(), key=lambda kv: (int(kv[0][0]), int(kv[0][1]))):
+        votes = collections.Counter()
+        weight = collections.Counter()
+        sides = collections.Counter()
+        lines = {a: [], b: []}
+        for c in cs:
+            fwd = c["a"] == a
+            d = c["d"] if fwd else (-c["d"][0], -c["d"][1])
+            side = c["side"] if fwd else OPP[c["side"]]
+            votes[d] += 1
+            weight[d] += (0 if c["cond"] else 1000) + c["len"]
+            sides[side] += 1
+            lines[c["a"]].append(c["line"])
+        d = max(votes, key=lambda k: (votes[k], weight[k], k))
+        side = max(sides, key=lambda s: (sides[s], s))
+        recip = bool(lines[a]) and bool(lines[b])
+        cond = all(c["cond"] for c in cs)
+        desc = f"{a}-{b}"
+        if len(votes) > 1:
+            log.append(f"warp {desc}: offsets disagree {dict(votes)}; majority {d}")
+        if len(sides) > 1:
+            log.append(f"warp {desc}: sides disagree {dict(sides)}; using {side}")
+        stated, n = scorer.score(a, b, d)
+        best, bd = stated, d
+        if stated is not None:
+            for i in range(-WARP_SEARCH, WARP_SEARCH + 1):
+                for j in range(-WARP_SEARCH, WARP_SEARCH + 1):
+                    if i == 0 and j == 0:
+                        continue
+                    s, _ = scorer.score(a, b, (d[0] + i, d[1] + j))
+                    if s is not None and s < best - 0.5:
+                        best, bd = s, (d[0] + i, d[1] + j)
+        rec = {"a": a, "b": b, "side": side, "lines": lines, "cond": cond, "n": len(cs),
+               "recip": recip, "statedOffset": list(d), "statedScore": stated}
+        if best is None:
+            near = all(abs(k[0] - d[0]) <= 1 and abs(k[1] - d[1]) <= 1 for k in votes)
+            if recip and near:
+                rec.update(d=d, score=None, verified=False)
+                log.append(f"warp {desc}: margins too thin to compare pixels; "
+                           f"accepted on reciprocal links at {d}")
+                pairs.append(rec)
+            else:
+                rejected.append(f"{desc}: one-way warp and no shared margin to verify")
+            continue
+        if best > WARP_MAX_DIFF:
+            rejected.append(f"{desc}: margins do not match (diff {stated:.1f}, "
+                            f"best {best:.1f} at {list(bd)})")
+            continue
+        if bd != d:
+            log.append(f"warp {desc}: pixels move offset {d} -> {bd} "
+                       f"(diff {stated:.1f} -> {best:.1f})")
+        rec.update(d=bd, score=round(best, 2), verified=True)
+        pairs.append(rec)
+    return pairs, rejected
+
+
+def seam_index(p, d):
+    """Seam along the pair's axis, in A's tiles: A keeps tiles >= seam for L/T,
+    tiles < seam for R/B; B keeps the rest.  Median of both maps' warp lines."""
+    side, a, b = p["side"], p["a"], p["b"]
+    k = 0 if side in "LR" else 1
+    near_side = side in "LT"
+    cand = [la if near_side else la + 1 for la in p["lines"][a]]
+    cand += [lb + 1 + d[k] if near_side else lb + d[k] for lb in p["lines"][b]]
+    cand.sort()
+    return cand[(len(cand) - 1) // 2]
+
+
+SEAM_SPAN = 0.4         # cut only maps that share at least this much of a side
+
+
+def apply_seam(clip, pos, p, dims):
+    """Cut A and B at the pair's seam (clip boxes are [l,t,r,b] in own tiles).
+
+    The cut runs along a whole side, so it is made only when the two maps face
+    each other along at least SEAM_SPAN of the shorter side; a warp at a corner
+    leaves both maps whole (the merge then accepts their overlap only where the
+    scenery matches).  A side cut by several seams keeps the most of the map, so
+    seams that disagree by a tile or two leave a small overlap, never a gap.
+    Uncut sides stay None until the cluster is drawn.  Returns True when cut."""
+    a, b, side = p["a"], p["b"], p["side"]
+    d = (pos[b][0] - pos[a][0], pos[b][1] - pos[a][1])
+    ra, rb = vis_rect(a, pos, clip, dims), vis_rect(b, pos, clip, dims)
+    k = 1 if side in "LR" else 0  # axis along the seam
+    span = min(ra[k + 2], rb[k + 2]) - max(ra[k], rb[k])
+    if span < SEAM_SPAN * min(ra[k + 2] - ra[k], rb[k + 2] - rb[k]):
+        return False
+    s = seam_index(p, d)
+    ca = clip.setdefault(a, [None] * 4)
+    cb = clip.setdefault(b, [None] * 4)
+
+    def cut(c, i, v, keep_more):
+        c[i] = v if c[i] is None else keep_more(c[i], v)
+
+    i, j = {"L": (0, 2), "R": (2, 0), "T": (1, 3), "B": (3, 1)}[side]
+    cut(ca, i, s, min if i < 2 else max)
+    cut(cb, j, s - d[k ^ 1], min if j < 2 else max)
+    return True
+
+
+def full_clip(m, clip, dims):
+    """[l, t, r, b] in m's tiles, uncut sides filled in."""
+    c = clip.get(m) or [None] * 4
+    full = (0, 0, *dims[m])
+    return [full[i] if c[i] is None else c[i] for i in range(4)]
+
+
+def vis_rect(m, pos, clip, dims):
+    l, t, r, b = full_clip(m, clip, dims)
+    x, y = pos[m]
+    return x + l, y + t, x + r, y + b
+
+
+def merge_warp_clusters(base, pairs, dims, areas, joined, scorer, log):
+    """Kruskal-style merge of the connection clusters (kept rigid) along warp pairs.
+
+    Pairs go in order: unconditional first, then verified, then best pixel match.
+    A pair is refused when it would put two story variants (same name and size,
+    not joined by a seamless connection) into one cluster, or when, after cutting
+    at the seam, two maps would overlap by more than OVERLAP_TOL tiles where
+    their pixels differ (an overlap that repeats the same scenery is allowed:
+    either map draws it the same).
+    """
+    comps, of = {}, {}
+    for i, cl in enumerate(base):
+        comps[i] = {"members": dict(cl["members"]), "clip": {}, "warps": [],
+                    "edges": list(cl["edges"]), "bases": [i]}
+        for m in cl["members"]:
+            of[m] = i
+    nxt = [len(base)]
+
+    def comp_of(m):
+        if m not in of:
+            comps[nxt[0]] = {"members": {m: (0, 0)}, "clip": {}, "warps": [], "edges": [],
+                             "bases": []}
+            of[m] = nxt[0]
+            nxt[0] += 1
+        return of[m]
+
+    def variant(m1, m2):
+        a1, a2 = areas.get(m1, {}), areas.get(m2, {})
+        return (a1.get("name") == a2.get("name") and dims[m1] == dims[m2]
+                and frozenset((m1, m2)) not in joined)
+
+    rejected = []
+    order = sorted(pairs, key=lambda p: (p["cond"], not p["verified"],
+                                         p["score"] if p["score"] is not None else 99,
+                                         -p["n"], int(p["a"]), int(p["b"])))
+    for p in order:
+        a, b = p["a"], p["b"]
+        ca, cb = comp_of(a), comp_of(b)
+        A, B = comps[ca], comps[cb]
+        desc = f"{a} {areas[a]['name']} -> {b} {areas[b]['name']}"
+        ax, ay = A["members"][a]
+        if ca == cb:
+            bx, by = A["members"][b]
+            if abs(bx - ax - p["d"][0]) > 1 or abs(by - ay - p["d"][1]) > 1:
+                rejected.append(f"{desc}: already placed at {(bx - ax, by - ay)}, "
+                                f"warp says {tuple(p['d'])}")
+                continue
+            cut = apply_seam(A["clip"], A["members"], p, dims)
+            A["warps"].append(p)
+            log.append(f"warp {a}-{b}: already placed consistently"
+                       + ("; cut at the seam" if cut else ""))
+            continue
+        bx0, by0 = B["members"][b]
+        sx, sy = ax + p["d"][0] - bx0, ay + p["d"][1] - by0
+        moved = {m: (x + sx, y + sy) for m, (x, y) in B["members"].items()}
+        clash = [(m1, m2) for m1 in A["members"] for m2 in moved if variant(m1, m2)]
+        if clash:
+            rejected.append(f"{desc}: story variants {clash[0][0]}/{clash[0][1]} "
+                            f"({areas[clash[0][0]]['name']}) would share a cluster")
+            continue
+        pos = {**A["members"], **moved}
+        clip = {k: list(v) for k, v in {**A["clip"], **B["clip"]}.items()}
+        if not apply_seam(clip, pos, p, dims):
+            log.append(f"warp {a}-{b}: maps meet at a corner, not cut")
+        bad = None
+        for m1 in A["members"]:
+            r1 = vis_rect(m1, pos, clip, dims)
+            if r1[2] <= r1[0] or r1[3] <= r1[1]:
+                bad = f"{m1} clipped away"
+                break
+            for m2 in moved:
+                r2 = vis_rect(m2, pos, clip, dims)
+                if r2[2] <= r2[0] or r2[3] <= r2[1]:
+                    bad = f"{m2} clipped away"
+                    break
+                ox = min(r1[2], r2[2]) - max(r1[0], r2[0])
+                oy = min(r1[3], r2[3]) - max(r1[1], r2[1])
+                if ox > OVERLAP_TOL and oy > OVERLAP_TOL:
+                    o = (pos[m2][0] - pos[m1][0], pos[m2][1] - pos[m1][1])
+                    win = (max(r1[0], r2[0]) - pos[m1][0], max(r1[1], r2[1]) - pos[m1][1],
+                           min(r1[2], r2[2]) - pos[m1][0], min(r1[3], r2[3]) - pos[m1][1])
+                    sc, _n = scorer.score(m1, m2, o, win)
+                    if sc is not None and sc <= WARP_MAX_DIFF:
+                        log.append(f"warp {a}-{b}: {m1}/{m2} share {ox}x{oy} tiles of "
+                                   f"matching scenery (diff {sc:.1f}), kept")
+                        continue
+                    bad = (f"would overlap {m1} {areas[m1]['name']} / {m2} "
+                           f"{areas[m2]['name']} by {ox}x{oy} tiles"
+                           + (f" (diff {sc:.1f})" if sc is not None else ""))
+                    break
+            if bad:
+                break
+        if bad:
+            rejected.append(f"{desc}: {bad}")
+            continue
+        A["members"] = pos
+        A["clip"] = clip
+        A["warps"] += B["warps"] + [p]
+        A["edges"] += B["edges"]
+        A["bases"] += B["bases"]
+        for m in moved:
+            of[m] = ca
+        del comps[cb]
+        log.append(f"warp placed {desc} at {tuple(p['d'])}"
+                   + (f" (diff {p['score']})" if p["score"] is not None else " (unverified)"))
+    return [c for c in comps.values() if len(c["members"]) > 1], rejected
+
+
+def warp_cluster_name(members, areas, dims, top):
+    """Most prominent (largest) maps first; prefix the shared place when the
+    cluster spans three or more differently named maps."""
+    size = collections.Counter()
+    for m in members:
+        size[areas[m]["name"]] += dims[m][0] * dims[m][1]
+    names = [n for n, _ in sorted(size.items(), key=lambda kv: (-kv[1], kv[0]))]
+    label = " / ".join(names[:3]) + (" …" if len(names) > 3 else "")
+    tops = {top.get(m) for m in members}
+    place = areas.get(next(iter(tops)), {}).get("name") if len(tops) == 1 else None
+    if place and len(names) >= 3 and place not in names:
+        return f"{place} — {label}", place
+    return label, None
+
+
 def cluster_name(members, areas):
     cnt = collections.Counter(areas[m]["name"] for m in members if m in areas)
     names = [n for n, _ in sorted(cnt.items(), key=lambda kv: (-kv[1], kv[0]))]
@@ -381,6 +758,8 @@ def main():
     ap.add_argument("--report")
     ap.add_argument("--preview-dir")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
+    ap.add_argument("--links", help="links.json (map exits); also stitch outdoor maps "
+                    "joined by edge warps, checked against their shared margins")
     args = ap.parse_args()
 
     pbs = os.path.join(args.db, "PBS")
@@ -520,13 +899,39 @@ def main():
     cscale = 1 / factor
     report["compositeScale"] = cscale
 
+    top, _era = area_tree(areas)
+    if args.links:
+        if np is None:
+            sys.exit("--links needs numpy (pixel checks of warp seams)")
+        with open(args.links, encoding="utf-8") as f:
+            links = json.load(f)
+        wlog = []
+        cands = warp_candidates(links, areas, dims, top, _era, wlog)
+        scorer = PixelScorer(img_dir)
+        pairs, prej = warp_pairs(cands, scorer, wlog)
+        joined = {frozenset((c["a"], c["b"])) for c in conns}
+        clusters, mrej = merge_warp_clusters(clusters, pairs, dims, areas, joined, scorer, wlog)
+        report["warp"] = {
+            "candidates": len(cands), "pairs": len(pairs),
+            "rejectedPairs": prej, "rejectedPlacements": mrej, "log": wlog,
+            "accepted": [{k: p[k] for k in ("a", "b", "side", "d", "score", "verified",
+                                            "cond", "n", "recip")} for p in pairs],
+        }
+    else:
+        for cl in clusters:
+            cl.update(clip={}, warps=[])
+
     world = Bundler(maps_dir, "world")
     stitched = []
     used_ids = {}
     for cl in sorted(clusters, key=lambda c: -len(c["members"])):
         members = sorted(cl["members"], key=int)
-        name = cluster_name(members, areas)
-        cid = slug(name.replace(" …", "")) or "cluster"
+        place = None
+        if cl["warps"]:
+            name, place = warp_cluster_name(members, areas, dims, top)
+        else:
+            name = cluster_name(members, areas)
+        cid = slug(place or name.replace(" …", "")) or "cluster"
         # context: first ancestor (site area tree) outside the cluster's own names
         own = {areas[m]["name"] for m in members if m in areas}
         ctx, cur, hops = None, areas.get(members[0], {}).get("parent"), 0
@@ -535,6 +940,8 @@ def main():
                 ctx = areas[cur]["name"]
                 break
             cur, hops = areas[cur]["parent"], hops + 1
+        if cl["warps"] and ctx and ctx.startswith("Neo ") and ctx not in name:
+            name = f"{name} ({ctx})"  # say which story variant this is
         if cid in used_ids:
             prev = used_ids[cid]
             if ctx and ctx != prev:
@@ -544,17 +951,37 @@ def main():
             cid = f"{cid}-{members[0]}"
         else:
             used_ids[cid] = ctx
-        tw, th = cl["tiles"]
-        tpx = TILE // factor
+        # visible part of each map (warp seams cut the margins) in cluster tiles
+        rects = {m: vis_rect(m, cl["members"], cl["clip"], dims) for m in members}
+        ox = min(r[0] for r in rects.values())
+        oy = min(r[1] for r in rects.values())
+        tw = max(r[2] for r in rects.values()) - ox
+        th = max(r[3] for r in rects.values()) - oy
+        f = factor  # same scale as the rest unless this cluster is too big for it
+        while max(tw, th) * TILE / f > COMPOSITE_MAX and f < TILE:
+            f *= 2
+        tpx = TILE // f
         canvas = Image.new("RGBA", (tw * tpx, th * tpx), (0, 0, 0, 0))
         boxes = []
         for m in members:
             x, y = cl["members"][m]
+            clip = full_clip(m, cl["clip"], dims)
+            if clip == [0, 0, *dims[m]]:
+                clip = None
             with Image.open(os.path.join(img_dir, m + ".png")) as im:
-                s = shrink(im, factor)
-            canvas.alpha_composite(s, (x * tpx, y * tpx))
-            boxes.append({"area": m, "x": x * tpx, "y": y * tpx, "w": s.size[0], "h": s.size[1],
-                          "tx": x, "ty": y})
+                if clip:
+                    l, t, r, b = clip
+                    with im.crop((l * TILE, t * TILE, r * TILE, b * TILE)) as part:
+                        s = shrink(part, f)
+                else:
+                    s = shrink(im, f)
+            vx, vy = rects[m][0] - ox, rects[m][1] - oy
+            canvas.alpha_composite(s, (vx * tpx, vy * tpx))
+            box = {"area": m, "x": vx * tpx, "y": vy * tpx, "w": s.size[0], "h": s.size[1],
+                   "tx": x - ox, "ty": y - oy}
+            if clip:
+                box["clip"] = clip
+            boxes.append(box)
         if args.preview_dir:
             os.makedirs(args.preview_dir, exist_ok=True)
             pv = canvas.copy()
@@ -562,13 +989,16 @@ def main():
             pv.save(os.path.join(args.preview_dir, cid + ".png"))
         bundle = world.add(cid, to_webp(canvas))
         grid = order_ids([m for m in members if m in pos_of])
-        stitched.append({
+        entry = {
             "id": cid, "name": name, "context": ctx, "bundle": bundle, "key": cid,
-            "w": canvas.size[0], "h": canvas.size[1], "scale": cscale,
+            "w": canvas.size[0], "h": canvas.size[1], "scale": 1 / f,
             "outdoor": any(areas.get(m, {}).get("outdoor") for m in members),
             "gridPoints": sorted({pos_of[m] for m in grid}),
             "areas": boxes,
-        })
+        }
+        if cl["warps"]:
+            entry["via"] = "warps" if not cl["edges"] else "connections+warps"
+        stitched.append(entry)
     world.flush()
 
     regionmap = {
@@ -586,6 +1016,14 @@ def main():
             "stitched[].areas[].tx/ty are tile offsets; x/y/w/h are pixels in the composite",
         ],
     }
+    if args.links:
+        regionmap["notes"] += [
+            "stitched[] with via=warps also joins outdoor maps linked by edge warps (links.json), "
+            "placed by the warp and checked against the scenery margin both maps share; "
+            "areas[].clip=[l,t,r,b] (tiles of that map) is the part drawn, cut at the seam, "
+            "so tx/ty (the map's origin) can lie outside the composite",
+            "stitched[].scale can be smaller for a cluster too big for the common scale",
+        ]
     with open(os.path.join(data_dir, "regionmap.json"), "w", encoding="utf-8") as f:
         json.dump(regionmap, f, ensure_ascii=False, separators=(",", ":"))
 
@@ -636,7 +1074,16 @@ def main():
     print(f"points: {len(points)} ({len(unmatched)} unmatched, {len(extra)} metadata-only)")
     print(f"clusters: {len(stitched)}, composite scale {cscale}")
     for s in stitched:
-        print(f"  {s['id']}: {len(s['areas'])} maps, {s['w']}x{s['h']}")
+        print(f"  {s['id']}: {len(s['areas'])} maps, {s['w']}x{s['h']}"
+              + (f" @{s['scale']}" if s["scale"] != cscale else "")
+              + (f" [{s['via']}]" if s.get("via") else ""))
+    if "warp" in report:
+        w = report["warp"]
+        print(f"warps: {w['candidates']} links, {len(w['accepted'])} pairs accepted, "
+              f"{len(w['rejectedPairs'])} pairs rejected, "
+              f"{len(w['rejectedPlacements'])} placements rejected")
+        for p in w["rejectedPairs"] + w["rejectedPlacements"]:
+            print("  rejected " + p)
     print(f"bundles: {len(report['bundles'])}, {report['totalBundleBytes'] / 1e6:.1f} MB")
     print(f"problems: {len(report['problems'])}")
     for p in report["problems"]:

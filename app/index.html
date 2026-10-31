@@ -1474,7 +1474,8 @@ function regModel(rm){
    2. The remaining cells merge into places: 4-connected runs of cells with the same name. */
 function regBlocks(R){
   const rm=R.rm,owner=new Map(),blocks=[],comps=[],bySet=new Map();
-  (rm.stitched||[]).forEach((s,i)=>{const ks=[...new Set((s.gridPoints||[]).map(p=>p[0]+','+p[1]))].filter(k=>R.cells.has(k)).sort();if(!ks.length)return;
+  const isNeo=s=>/(^|\W)neo\W/i.test(s.name+' ');/* present-day variant leads, Neo variants become its alternates */
+  (rm.stitched||[]).map((s,i)=>[s,i]).sort((a,b)=>isNeo(a[0])-isNeo(b[0])||a[1]-b[1]).forEach(([s,i])=>{const ks=[...new Set((s.gridPoints||[]).map(p=>p[0]+','+p[1]))].filter(k=>R.cells.has(k)).sort();if(!ks.length)return;
     const key=ks.join(';'),o=bySet.get(key);if(o){o.alts.push(s);return}const c={s,i,ks,alts:[]};bySet.set(key,c);comps.push(c)});
   comps.sort((a,b)=>(!!b.s.outdoor-!!a.s.outdoor)||b.ks.length-a.ks.length||a.i-b.i).forEach(c=>{
     const ks=c.ks.filter(k=>!owner.has(k)&&(c.s.outdoor||R.nameAt(k)===c.s.name));if(!ks.length)return;
