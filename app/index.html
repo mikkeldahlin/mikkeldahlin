@@ -20,6 +20,7 @@
   --st-lo:#c86a45; --st-mid:#c99a2e; --st-hi:#3f9a78; --st-top:#2f7fb0;
   --cat-phys:#b44a1f; --cat-spec:#2f62b5; --cat-stat:#6d7775;
   --map-bg:#2a3336; --box-line:#f2f5f4; --box-hot:#c6a8ee;
+  --ev-item:var(--t-electric); --ev-gift:var(--t-fairy); --ev-tr:var(--box-line);
   --shadow:0 1px 0 rgba(20,30,32,.06),0 6px 18px -10px rgba(20,30,32,.35);
 
   --t-normal:#a8a77a; --t-normal-i:#1b1b0f; --t-fire:#ee8130; --t-fire-i:#1f0d02;
@@ -129,6 +130,8 @@ main{padding-block:18px 40px}
 .ty{--c:var(--t-unk);--ci:var(--t-unk-i);display:inline-flex;align-items:center;justify-content:center;background:var(--c);color:var(--ci);font:600 11.5px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:4px 7px 3px;border-radius:2px;white-space:nowrap;text-decoration:none}
 .ty.xs{font-size:10px;padding:3px 4px 2px;letter-spacing:.04em;min-width:34px}
 a.ty:hover{filter:brightness(1.08)}
+a.field{text-decoration:none;cursor:pointer}
+a.field:hover,a.field:focus-visible{border-style:solid;border-color:var(--accent)}
 .t-normal{--c:var(--t-normal);--ci:var(--t-normal-i)}.t-fire{--c:var(--t-fire);--ci:var(--t-fire-i)}.t-water{--c:var(--t-water);--ci:var(--t-water-i)}
 .t-electric{--c:var(--t-electric);--ci:var(--t-electric-i)}.t-grass{--c:var(--t-grass);--ci:var(--t-grass-i)}.t-ice{--c:var(--t-ice);--ci:var(--t-ice-i)}
 .t-fighting{--c:var(--t-fighting);--ci:var(--t-fighting-i)}.t-poison{--c:var(--t-poison);--ci:var(--t-poison-i)}.t-ground{--c:var(--t-ground);--ci:var(--t-ground-i)}
@@ -318,7 +321,8 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .amf{position:relative;display:block;line-height:0;max-width:100%;cursor:zoom-in}
 .amf img{width:100%;max-width:none;height:auto}
 .xo{position:absolute;inset:0;line-height:1.2}
-.noexits .xo,.noexits .xpop{display:none}
+.noexits .xe,.noexits .xd{display:none}
+.noitems .ev-i,.notrainers .ev-t{display:none}
 .xe{position:absolute;display:block;--t:calc(18px * var(--iz,1));text-decoration:none;color:var(--map-bg)}
 .xe.s-left,.xe.s-right{top:var(--p);height:max(var(--t),var(--s));width:var(--t);transform:translateY(-50%)}
 .xe.s-top,.xe.s-bottom{left:var(--p);width:max(var(--t),var(--s));height:var(--t);transform:translateX(-50%)}
@@ -348,11 +352,11 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .xo.dense .xd.h-npc::before{width:5px;height:5px}
 .xl{position:absolute;z-index:2;font:600 11.5px/1.2 var(--f-body);letter-spacing:.02em;white-space:nowrap;padding:3px 6px;border-radius:2px;background:var(--band);color:var(--band-fg);border:1px solid var(--band-line);box-shadow:var(--shadow);pointer-events:none;opacity:0;visibility:hidden}
 .xl i{font-weight:400;color:var(--band-muted)}
-.xe:hover .xl,.xe:focus-visible .xl,.xd:hover .xl,.xd:focus-visible .xl{opacity:1;visibility:visible}
+.xe:hover .xl,.xe:focus-visible .xl,.xd:hover .xl,.xd:focus-visible .xl,.ev:hover .xl,.ev:focus-visible .xl{opacity:1;visibility:visible}
 .xe:hover,.xe:focus-visible,.xd:hover,.xd:focus-visible{z-index:3}
-.xd .xl{bottom:calc(100% + 2px);left:50%;transform:translateX(-50%)}
-.xd.lb .xl{bottom:auto;top:calc(100% + 2px)}
-.xd.al .xl{left:0;transform:none}.xd.ar .xl{left:auto;right:0;transform:none}
+.xd .xl,.ev .xl{bottom:calc(100% + 2px);left:50%;transform:translateX(-50%)}
+.xd.lb .xl,.ev.lb .xl{bottom:auto;top:calc(100% + 2px)}
+.xd.al .xl,.ev.al .xl{left:0;transform:none}.xd.ar .xl,.ev.ar .xl{left:auto;right:0;transform:none}
 .s-left .xl{left:calc(100% + 5px);top:50%;transform:translateY(-50%)}
 .s-right .xl{right:calc(100% + 5px);top:50%;transform:translateY(-50%)}
 .s-top .xl{top:calc(100% + 5px);left:50%;transform:translateX(-50%)}
@@ -366,6 +370,32 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .xpop a{display:block;padding:5px 6px;border-radius:2px;color:var(--fg);text-decoration:none;white-space:normal}
 .xpop a:hover,.xpop a:focus-visible{background:var(--accent-soft)}
 .xpop small{color:var(--muted)}
+.xpop .chk{padding:4px 6px;font-size:13.5px;white-space:normal}
+.xpop .xp-n{padding:0 6px 2px;color:var(--muted);font-size:12.5px}
+.xpop .xp-t{display:grid;gap:0;border-top:1px solid var(--line-soft);padding-top:3px}
+.xpop .xp-t:first-of-type{border-top:0;padding-top:0}
+.xpop .badge{font-size:9.5px;padding:2px 4px 1px;margin-right:4px;vertical-align:1px}
+/* positioned items and trainers (data/events.json) */
+.ev{--c:var(--ev-tr);position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;padding:0;border:0;background:none;display:grid;place-items:center;transform:scale(var(--iz,1));cursor:pointer;color:var(--c);font:inherit;z-index:1}
+.ev:hover,.ev:focus-visible,.ev[aria-expanded="true"]{z-index:3}
+.ev::before{content:"";grid-area:1/1}
+.ev-item::before{width:7px;height:7px;border-radius:50%;background:var(--ev-item);box-shadow:0 0 0 1.5px var(--map-bg)}
+.ev-hidden::before{width:8px;height:8px;border-radius:50%;border:2px dotted var(--ev-item);background:color-mix(in srgb,var(--map-bg) 30%,transparent)}
+.ev svg{grid-area:1/1;width:12px;height:12px;fill:var(--c);stroke:var(--map-bg);stroke-width:1.1;stroke-linejoin:round;overflow:visible}
+.ev-gift{--c:var(--ev-gift)}
+.ev.kc-gym{--c:var(--k-gym)}.ev.kc-elite{--c:var(--k-elite)}.ev.kc-boss{--c:var(--k-boss)}.ev.kc-rival{--c:var(--k-rival)}.ev.kc-regular{--c:var(--ev-tr)}
+.ev:hover::before,.ev:focus-visible::before,.ev[aria-expanded="true"]::before{box-shadow:0 0 0 1.5px var(--map-bg),0 0 0 3px var(--box-hot)}
+.ev:hover svg,.ev:focus-visible svg,.ev[aria-expanded="true"] svg{stroke:var(--box-hot);stroke-width:1.6}
+.ev.done{opacity:.42;filter:grayscale(1)}
+.ev.done:hover,.ev.done:focus-visible{opacity:.85}
+.xo.dense .ev{width:14px;height:14px;margin:-7px 0 0 -7px}
+.prog{font:500 12px/1 var(--f-mono);color:var(--muted);white-space:nowrap}
+.prog.all{color:var(--st-hi)}
+.is-picked>a b,.is-picked>a,.is-picked .pk-n{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.pk{accent-color:var(--accent);width:16px;height:16px;margin:0;flex:none;cursor:pointer}
+.loc-btn{background:none;border:1px solid var(--line);border-radius:2px;padding:1px 6px;font:500 11.5px/1.4 var(--f-mono);color:var(--muted);cursor:pointer}
+.loc-btn:hover{border-color:var(--accent-line);color:var(--fg)}
+tr.is-beaten td a{color:var(--muted)}
 .xarr{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:2.5px solid var(--box-hot);box-shadow:0 0 0 2px color-mix(in srgb,var(--map-bg) 60%,transparent);pointer-events:none;z-index:4;transform:scale(var(--iz,1));animation:xarr .95s ease-out 2 both}
 @keyframes xarr{0%{transform:scale(calc(var(--iz,1) * .35));opacity:1}70%{opacity:.9}100%{transform:scale(calc(var(--iz,1) * 1.7));opacity:0}}
 .abar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
@@ -387,6 +417,29 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .xov-h .btn[aria-pressed="true"]{color:var(--accent-fg)}
 .xov .vp{flex:1 1 auto;height:auto;min-height:0;border:0;border-radius:0}
 
+.mtool{position:sticky;top:var(--hh);z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 0;margin:-10px 0 12px;background:var(--bg);border-bottom:1px solid var(--line-soft);min-width:0}
+.mtool .btn{font-size:13.5px;padding:5px 10px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex:none}
+.mtool .btn:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+.mtool .btn[aria-expanded="true"]{background:var(--accent-soft);border-color:var(--accent-line)}
+.mcr{display:flex;align-items:center;gap:2px 6px;min-width:0;flex:1 1 200px;overflow:hidden;white-space:nowrap;font-size:13.5px;color:var(--muted);margin-left:4px}
+.mcr>a,.mcr>span{min-width:0;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+.mcr>a{color:var(--muted)}
+.mcr>a:hover{color:var(--fg)}
+.mcr>.sep{flex:none;color:var(--faint)}
+.mcr>[aria-current]{color:var(--fg);font-weight:600;flex:0 0 auto;max-width:70%}
+.mlay{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
+.mlay.has-find{grid-template-columns:minmax(250px,300px) minmax(0,1fr)}
+.mfind.list-pane{top:calc(var(--hh) + var(--mth,0px) + 10px);max-height:calc(100dvh - var(--hh) - var(--mth,0px) - 20px)}
+.mbody{min-width:0;display:grid;gap:0}
+.mbody>.detail-pane{min-width:0}
+@media (max-width:860px){
+  .mlay.has-find{grid-template-columns:minmax(0,1fr)}
+  .mfind.list-pane .list{max-height:55vh;overflow-y:auto}
+}
+@media (max-width:520px){
+  .mcr{flex-basis:100%;order:5;margin-left:0}
+  .mtool .wd{display:none}
+}
 /* map */
 .mapbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
 .layers{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
@@ -491,9 +544,9 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
       <a href="#types" data-v="types">Types</a>
       <a href="#dex" data-v="dex">Pokédex</a>
       <a href="#battles" data-v="battles">Battles</a>
-      <a href="#areas" data-v="areas">Areas</a>
+      <a href="#map" data-v="map">Map</a>
       <a href="#items" data-v="items">Items</a>
-      <a href="#map" data-v="map">World map</a>
+      <a href="#fields" data-v="fields">Fields</a>
     </nav>
     <span class="ver" id="ver"></span>
   </div>
@@ -570,20 +623,6 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
     </div>
   </section>
 
-  <section class="view" id="v-areas" hidden>
-    <div class="split" id="area-split">
-      <aside class="list-pane" aria-label="Area list">
-        <div class="list-head">
-          <input class="inp" id="area-q" type="search" autocomplete="off" spellcheck="false" placeholder="Area, map id, field or Pokémon" aria-label="Search areas">
-          <label class="chk" for="area-wild"><input type="checkbox" id="area-wild"> Only areas with wild Pokémon</label>
-          <span class="list-count" id="area-count"></span>
-        </div>
-        <div class="list" id="area-list"><p class="loading gutter">Loading areas…</p></div>
-      </aside>
-      <article class="detail-pane" id="area-detail"></article>
-    </div>
-  </section>
-
   <section class="view" id="v-items" hidden>
     <div class="split" id="item-split">
       <aside class="list-pane" aria-label="Item list">
@@ -593,6 +632,7 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
             <select class="sel" id="item-pocket" aria-label="Filter by pocket"><option value="">All pockets</option></select>
           </div>
           <label class="chk" for="item-loc" id="item-loc-l"><input type="checkbox" id="item-loc"> Only items with known locations</label>
+          <label class="chk" for="item-hide"><input type="checkbox" id="item-hide"> Hide picked up</label>
           <span class="list-count" id="item-count"></span>
           <a href="#items-pickup" id="pickup-link" class="note" hidden>Pickup ability table</a>
         </div>
@@ -603,22 +643,56 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
   </section>
 
   <section class="view" id="v-map" hidden>
-    <div class="mapbar">
-      <label class="lbl" for="map-pick">Map</label>
-      <select class="sel" id="map-pick"><option value="">Region grid</option></select>
-      <div class="layers" id="map-layers">
-        <label class="chk" for="ly-names"><input type="checkbox" id="ly-names" checked> Names</label>
-        <label class="chk" for="ly-wild"><input type="checkbox" id="ly-wild" checked> Wild</label>
-        <label class="chk" for="ly-trainers"><input type="checkbox" id="ly-trainers" checked> Trainers</label>
-        <label class="chk" for="ly-gyms"><input type="checkbox" id="ly-gyms" checked> Gyms and bosses</label>
-        <label class="chk" for="ly-fields"><input type="checkbox" id="ly-fields" checked> Field effects</label>
-        <label class="chk off" for="ly-items" id="ly-items-l"><input type="checkbox" id="ly-items" disabled> Items, TMs, HMs</label>
+    <div class="mtool" id="map-tool">
+      <button type="button" class="btn" id="mt-back" disabled aria-label="Back">← Back</button>
+      <a class="btn" href="#map" id="mt-world">World map</a>
+      <button type="button" class="btn" id="mt-find" aria-expanded="false" aria-controls="map-find">Find<span class="wd"> a place</span></button>
+      <nav class="mcr" id="mt-crumbs" aria-label="Breadcrumb"></nav>
+    </div>
+    <div class="mlay" id="map-lay">
+      <aside class="list-pane mfind" id="map-find" aria-label="Find a place" hidden>
+        <div class="list-head">
+          <input class="inp" id="area-q" type="search" autocomplete="off" spellcheck="false" placeholder="Area, map id, field or Pokémon" aria-label="Search areas">
+          <label class="chk" for="area-wild"><input type="checkbox" id="area-wild"> Only areas with wild Pokémon</label>
+          <span class="list-count" id="area-count"></span>
+        </div>
+        <div class="list" id="area-list"><p class="loading gutter">Loading areas…</p></div>
+      </aside>
+      <div class="mbody">
+        <div id="map-world">
+          <div class="mapbar">
+            <label class="lbl" for="map-pick">Map</label>
+            <select class="sel" id="map-pick"><option value="">Region grid</option></select>
+            <div class="layers" id="map-layers">
+              <label class="chk" for="ly-names"><input type="checkbox" id="ly-names" checked> Names</label>
+              <label class="chk" for="ly-wild"><input type="checkbox" id="ly-wild" checked> Wild</label>
+              <label class="chk" for="ly-trainers"><input type="checkbox" id="ly-trainers" checked> Trainers</label>
+              <label class="chk" for="ly-gyms"><input type="checkbox" id="ly-gyms" checked> Gyms and bosses</label>
+              <label class="chk" for="ly-fields"><input type="checkbox" id="ly-fields" checked> Field effects</label>
+              <label class="chk off" for="ly-items" id="ly-items-l"><input type="checkbox" id="ly-items" disabled> Items, TMs, HMs</label>
+            </div>
+          </div>
+          <p class="note" id="items-note" hidden>Items, TMs and HMs: no item locations in this build yet.</p>
+          <div class="mapgrid" style="margin-top:12px">
+            <div id="map-main"><p class="loading">Loading map…</p></div>
+            <aside class="side" id="map-side"></aside>
+          </div>
+        </div>
+        <article class="detail-pane" id="area-detail" hidden></article>
       </div>
     </div>
-    <p class="note" id="items-note" hidden>Items, TMs and HMs: coming soon. Pickup locations need wiki data that this build can't reach yet.</p>
-    <div class="mapgrid" style="margin-top:12px">
-      <div id="map-main"><p class="loading">Loading map…</p></div>
-      <aside class="side" id="map-side"></aside>
+  </section>
+
+  <section class="view" id="v-fields" hidden>
+    <div class="split" id="field-split">
+      <aside class="list-pane" aria-label="Field list">
+        <div class="list-head">
+          <input class="inp" id="field-q" type="search" autocomplete="off" spellcheck="false" placeholder="Field, effect or area" aria-label="Search fields">
+          <span class="list-count" id="field-count"></span>
+        </div>
+        <div class="list" id="field-list"><p class="loading gutter">Loading fields…</p></div>
+      </aside>
+      <article class="detail-pane" id="field-detail"></article>
     </div>
   </section>
 </div></main>
@@ -631,6 +705,36 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const slug=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const pretty=id=>String(id??'').split('-').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* Progress: every tick (trainer beaten, item picked up) goes through here.
+   Keys: "beat:<trainerId>" and "pick:<areaId>:<ev>" or "pick:<itemId>:<locationIndex>".
+   The default backend is localStorage (rfg-beaten = trainer ids, rfg-picked = pick keys);
+   Progress.useBackend({load,save}) swaps in another store (a local server, say) without touching call sites.
+   onChange(fn) gets (changes:[{key,value}], source) with source 'user', 'game' or 'backend'. */
+const Progress=(()=>{
+  const LS={beat:'rfg-beaten',pick:'rfg-picked'};
+  const readLocal=()=>{const o={},b=store.get(LS.beat,[]),p=store.get(LS.pick,[]);
+    (Array.isArray(b)?b:[]).forEach(id=>{o['beat:'+id]=true});(Array.isArray(p)?p:[]).forEach(k=>{if(/^pick:/.test(k))o[k]=true});return o};
+  const local={load:async()=>readLocal(),save:async o=>{const ks=Object.keys(o).filter(k=>o[k]);
+    store.set(LS.beat,ks.filter(k=>k.startsWith('beat:')).map(k=>k.slice(5)));store.set(LS.pick,ks.filter(k=>k.startsWith('pick:')))}};
+  let S=readLocal(),be=local,fns=[],queued=false;
+  const persist=()=>{if(queued)return;queued=true;Promise.resolve().then(()=>{queued=false;return be.save(Object.assign({},S))}).catch(e=>console.error(e))};
+  const fire=(ch,src)=>{if(ch.length)fns.slice().forEach(f=>{try{f(ch,src)}catch(e){console.error(e)}})};
+  const put=(k,v,ch)=>{k=String(k);v=!!v;if(!!S[k]===v)return;if(v)S[k]=true;else delete S[k];ch.push({key:k,value:v})};
+  return {
+    get:k=>!!S[k],
+    set(k,v,source='user'){const ch=[];put(k,v,ch);if(ch.length){persist();fire(ch,source)}},
+    setMany(obj,source='game'){const ch=[];for(const k in obj)put(k,obj[k],ch);if(ch.length){persist();fire(ch,source)}},
+    all:()=>Object.assign({},S),
+    count:prefix=>Object.keys(S).filter(k=>k.startsWith(prefix)).length,
+    onChange(fn){fns.push(fn);return()=>{fns=fns.filter(f=>f!==fn)}},
+    async useBackend(b){be=b&&typeof b.load==='function'&&typeof b.save==='function'?b:local;
+      let o={};try{o=(await be.load())||{}}catch(e){console.error(e);return false}
+      const ch=[];Object.keys(S).forEach(k=>{if(!o[k])put(k,false,ch)});for(const k in o)put(k,o[k],ch);fire(ch,'backend');return true},
+    beat:id=>'beat:'+id,
+  };
+})();
+const isBeaten=id=>Progress.get('beat:'+id);
+const isPicked=k=>Progress.get(k);
 const push=(m,k,v)=>{let a=m.get(k);if(!a)m.set(k,a=[]);if(!a.includes(v))a.push(v)};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -664,7 +768,7 @@ function banner(){
 }
 
 /* ---------- indexes ---------- */
-const IX={pk:new Map(),mv:new Map(),tm:new Map(),ab:new Map(),ar:new Map(),kids:new Map(),tr:new Map(),trMon:new Map(),trArea:new Map(),it:new Map(),itArea:new Map(),types:[],chart:{},spr:null};
+const IX={pk:new Map(),mv:new Map(),tm:new Map(),ab:new Map(),ar:new Map(),kids:new Map(),tr:new Map(),trMon:new Map(),trArea:new Map(),it:new Map(),itArea:new Map(),fd:new Map(),types:[],chart:{},spr:null};
 function index(name,d){
   if(!d) return;
   if(name==='types'){IX.types=d.types||Object.keys(d.chart||{});IX.chart=d.chart||{}}
@@ -675,6 +779,7 @@ function index(name,d){
   else if(name==='trainers') d.forEach(t=>{IX.tr.set(t.id,t);(t.team||[]).forEach(m=>push(IX.trMon,m.pokemon,t));(t.locations||[]).forEach(l=>push(IX.trArea,String(l.area),t))});
   else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);(i.locations||[]).forEach(l=>{if(l&&l.area!=null&&l.area!=='')push(IX.itArea,String(l.area),{item:i,loc:l})})});
   else if(name==='sprites') IX.spr=d;
+  else if(name==='fields'&&Array.isArray(d)) d.forEach(f=>{if(!f||!f.id)return;[f.id,slug(f.name),slug(String(f.name||'').replace(/\s+field$/i,''))].forEach(k=>{if(k&&!IX.fd.has(k))IX.fd.set(k,f)})});
   else if(name==='meta'){aliasPk();$('#ver').textContent=d.version?(/^\d/.test(d.version)?'v':'')+d.version:'';footer()}
 }
 const abName=x=>{const a=x&&IX.ab.get(slug(x));return a?a.name:(x||'')};
