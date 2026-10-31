@@ -425,6 +425,7 @@ tr.is-beaten td a{color:var(--muted)}
 .mcr{display:flex;align-items:center;gap:2px 6px;min-width:0;flex:1 1 200px;overflow:hidden;white-space:nowrap;font-size:13.5px;color:var(--muted);margin-left:4px}
 .mcr>a,.mcr>span{min-width:0;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
 .mcr>a{color:var(--muted)}
+.mcr>:first-child{flex:none}
 .mcr>a:hover{color:var(--fg)}
 .mcr>.sep{flex:none;color:var(--faint)}
 .mcr>[aria-current]{color:var(--fg);font-weight:600;flex:0 0 auto;max-width:70%}
@@ -1191,7 +1192,7 @@ function setFind(v,focus){
 function mapTool(mode,id){
   const back=MH.stack.length?MH.stack[MH.stack.length-1]:null,b=$('#mt-back');
   b.disabled=!back;b.title=back?'Back to '+keyName(back):'Nothing to go back to yet';b.setAttribute('aria-label',back?'Back to '+keyName(back):'Back');
-  $('#mt-world').toggleAttribute('aria-current',mode==='world');
+  if(mode==='world')$('#mt-world').setAttribute('aria-current','page');else $('#mt-world').removeAttribute('aria-current');
   const sep='<span class="sep" aria-hidden="true">›</span>',W='<a href="#map">World</a>';
   let h;
   if(mode==='world')h='<span aria-current="page">World</span>';
