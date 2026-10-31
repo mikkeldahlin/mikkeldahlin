@@ -1,0 +1,52 @@
+# DRAFT - not enabled. Rename to build-app.yml to turn it on.
+# Builds a one-file Reborn Field Guide app per OS with PyInstaller, so users need no Python.
+# Before enabling: make serve.DEFAULT_APP and run.MOD_SRC use sys._MEIPASS when frozen (see PLAN.md).
+name: build-app
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: RebornFieldGuide-windows
+            sep: ";"
+          - os: macos-latest
+            name: RebornFieldGuide-macos
+            sep: ":"
+          - os: ubuntu-latest
+            name: RebornFieldGuide-linux
+            sep: ":"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyinstaller==6.10.0
+      - run: python -m unittest discover -s bridge/test
+      - run: >
+          pyinstaller --onefile --name ${{ matrix.name }}
+          --add-data "app${{ matrix.sep }}app"
+          --add-data "bridge/mod${{ matrix.sep }}mod"
+          --paths bridge bridge/run.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*

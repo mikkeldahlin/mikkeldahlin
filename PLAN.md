@@ -81,3 +81,16 @@ artifact files.
 **Limits:**
 - The live link can't be fully tested without running the game on the laptop.
 - The first real run may need small fixes to hook names.
+
+**Local app (built):** the local copy is a small downloadable app, not just a page.
+- `bridge/run.py` starts the server and opens the browser. On Windows, `bridge\RebornFieldGuide.bat` runs it on double-click. It remembers the game folder, and offers to copy the mod into `Data\Mods` (or use `bridge\install_mod.bat`).
+- Ticks are saved on disk through `/api/progress` in `%APPDATA%\RebornFieldGuide\progress.json`. The macOS and Linux equivalents are listed in `bridge/STATE_FORMAT.md`. Writes are atomic, with a `.bak` kept.
+- The server ticks items and trainers from the game's self switches, game switches and story variables, using `app/data/eventflags.json`. It does this even when no page is open, and never overrides a tick the user set by hand.
+- Contract: `bridge/STATE_FORMAT.md`. Setup: `LOCAL_SETUP.md`.
+
+**Packaging later (plan only, not built):** ship one executable per OS, so no Python install is needed.
+- A GitHub Actions matrix (`windows-latest`, `macos-latest`, `ubuntu-latest`) runs PyInstaller `--onefile` on `bridge/run.py`, with `--add-data app` and `--add-data bridge/mod`. A draft is in `.github/workflows/build-app.yml.disabled`; rename it to enable.
+- `run.py` must then find `app/` and the mod via `sys._MEIPASS` when frozen. That is a small change to `serve.DEFAULT_APP` and `run.MOD_SRC`.
+- Attach the binaries to a GitHub Release on a tag (`RebornFieldGuide-windows.exe`, `-macos`, `-linux`).
+- Unsigned binaries trigger Windows SmartScreen and macOS Gatekeeper warnings. Document "More info → Run anyway" and right-click → Open, or sign them later. Keep the Python path as the fallback.
+- The app data is ~12 MB of JSON plus map bundles. A single exe of about 25 MB is fine.
