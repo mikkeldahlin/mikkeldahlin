@@ -415,6 +415,7 @@ tr.is-beaten td a{color:var(--muted)}
 .xov-t{flex:1 1 auto;min-width:0;font:800 20px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .xov-h .btn{font-size:13.5px;padding:6px 10px;flex:none;color:var(--fg)}
 .xov-h .btn[aria-pressed="true"]{color:var(--accent-fg)}
+@media (max-width:520px){.xov-h{flex-wrap:wrap}.xov-t{flex-basis:100%}}
 .xov .vp{flex:1 1 auto;height:auto;min-height:0;border:0;border-radius:0}
 
 .mtool{position:sticky;top:var(--hh);z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 0;margin:-10px 0 12px;background:var(--bg);border-bottom:1px solid var(--line-soft);min-width:0}
@@ -777,7 +778,7 @@ function index(name,d){
   else if(name==='abilities') d.forEach(a=>{IX.ab.set(a.id,a);IX.ab.set(slug(a.name),a)});
   else if(name==='areas'){d.forEach(a=>IX.ar.set(String(a.id),a));d.forEach(a=>{if(a.parent!=null&&IX.ar.has(String(a.parent)))push(IX.kids,String(a.parent),a)})}
   else if(name==='trainers') d.forEach(t=>{IX.tr.set(t.id,t);(t.team||[]).forEach(m=>push(IX.trMon,m.pokemon,t));(t.locations||[]).forEach(l=>push(IX.trArea,String(l.area),t))});
-  else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);(i.locations||[]).forEach(l=>{if(l&&l.area!=null&&l.area!=='')push(IX.itArea,String(l.area),{item:i,loc:l})})});
+  else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);});
   else if(name==='sprites') IX.spr=d;
   else if(name==='fields'&&Array.isArray(d)) d.forEach(f=>{if(!f||!f.id)return;[f.id,slug(f.name),slug(String(f.name||'').replace(/\s+field$/i,''))].forEach(k=>{if(k&&!IX.fd.has(k))IX.fd.set(k,f)})});
   else if(name==='meta'){aliasPk();$('#ver').textContent=d.version?(/^\d/.test(d.version)?'v':'')+d.version:'';footer()}
@@ -793,6 +794,9 @@ const isTM=i=>!!i&&(i.pocket==='TMs & HMs'||/^(tm|hm|tr)x?\d/i.test(i.id||''));
 const itemGroup=i=>isTM(i)?'tm':i.pocket==='Key Items'?'key':'other';
 const itemByName=n=>n?IX.it.get(slug(n)):null;
 const extLink=(u,label)=>/^https:\/\//.test(u||'')?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label||u.replace(/^https:\/\/(www\.)?/,'').split('/')[0])}</a>`:esc(u||'');
+const fieldOf=n=>{if(!n)return null;const k=slug(n);return IX.fd.get(k)||IX.fd.get(k+'-field')||IX.fd.get(k.replace(/-field$/,''))||null};
+const fieldHref=n=>'#field-'+((fieldOf(n)||{}).id||slug(n));
+const fieldBadge=n=>n?`<a class="field" href="${fieldHref(n)}" title="Field effect: read what ${esc(n)} does">${esc(n)}</a>`:'';
 
 /* ---------- type math ---------- */
 const tcls=t=>'t-'+slug(t);
@@ -843,33 +847,39 @@ function abilityChanges(defs,ab){
 }
 
 /* ---------- router ---------- */
-const VIEWS=['types','dex','battles','areas','items','map'];
+const VIEWS=['types','dex','battles','map','items','fields'];
 let curView=null;
+/* #map = world grid, #map-<stitchedId> = stitched composite, #area-<id> = one area; all inside the Map tab. #areas redirects to #map. */
 function parseHash(){
-  const h=decodeURIComponent(location.hash.slice(1)).trim();
-  const m=h.match(/^(types|dex|battles?|areas?|items?|map)(?:-(.+))?$/);
+  let h='';try{h=decodeURIComponent(location.hash.slice(1)).trim()}catch(e){h=location.hash.slice(1)}
+  const m=h.match(/^(types|dex|battles?|areas?|items?|map|fields?)(?:-(.+))?$/);
   if(!m) return {view:'types',id:null};
-  const v={battle:'battles',battles:'battles',area:'areas',areas:'areas',item:'items',items:'items'}[m[1]]||m[1];
-  return {view:v,id:m[2]||null};
+  const id=m[2]||null;
+  if(m[1]==='area'||m[1]==='areas')return id?{view:'map',mode:'area',id,redirect:m[1]==='areas'?'area-'+id:null}:{view:'map',mode:'world',id:null,redirect:'map'};
+  if(m[1]==='map')return {view:'map',mode:id?'st':'world',id};
+  const v={battle:'battles',battles:'battles',item:'items',items:'items',field:'fields',fields:'fields'}[m[1]]||m[1];
+  return {view:v,id};
 }
 async function route(){
-  const {view,id}=parseHash();
+  const P=parseHash(),{view,id}=P;
+  if(P.redirect){try{history.replaceState(null,'','#'+P.redirect)}catch(e){}}
   VIEWS.forEach(v=>{$('#v-'+v).hidden=v!==view});
   $$('.tabs a').forEach(a=>{if(a.dataset.v===view){a.setAttribute('aria-current','page');const n=a.parentNode;if(n.scrollWidth>n.clientWidth){const l=a.offsetLeft-n.offsetLeft;if(l<n.scrollLeft||l+a.offsetWidth>n.scrollLeft+n.clientWidth)n.scrollLeft=l-16}}else a.removeAttribute('aria-current')});
-  if(view!=='areas'){xPopClose();closeXov()}
+  if(!(view==='map'&&P.mode==='area')){xPopClose();closeXov()}else if(AR.pop)xPopClose();
   const changed=curView!==view; curView=view;
   try{
     if(view==='types') await showTypes(id);
     else if(view==='dex') await showDex(id,changed);
     else if(view==='battles') await showBattle(id,changed);
-    else if(view==='areas') await showArea(id,changed);
+    else if(view==='map') await showMapTab(P.mode,id);
     else if(view==='items') await showItems(id,changed);
-    else if(view==='map') await showMap(id);
+    else if(view==='fields') await showFields(id,changed);
   }catch(e){console.error(e)}
 }
+const cssPx=v=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v))||0;
 function scrollDetail(split){
   if(matchMedia('(max-width:860px)').matches) window.scrollTo({top:0});
-  else{const r=$('#'+split).getBoundingClientRect();if(r.top<0)window.scrollTo({top:window.scrollY+r.top-parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hh'))-10})}
+  else{const r=$('#'+split).getBoundingClientRect();if(r.top<0)window.scrollTo({top:window.scrollY+r.top-cssPx('--hh')-10})}
 }
 function setCurrent(list,id){$$('[aria-current]',list).forEach(e=>e.removeAttribute('aria-current'));if(id){const e=list.querySelector(`[data-id="${CSS.escape(id)}"]`);if(e)e.setAttribute('aria-current','true')}}
 
@@ -1074,7 +1084,7 @@ function renderWhere(p){
 }
 
 /* ---------- BATTLES view ---------- */
-const BT={built:false,list:[],shown:250,cur:null,beaten:new Set(store.get('rfg-beaten',[]))};
+const BT={built:false,list:[],shown:250,cur:null};
 const KIND_LABEL={gym:'Gym',elite:'Elite',boss:'Boss',rival:'Rival'};
 function kindBadge(t){
   const k=t.kind||'regular';
@@ -1082,7 +1092,6 @@ function kindBadge(t){
   return t.important?`<span class="badge k-regular" title="Important battle">★</span>`:'';
 }
 const byStory=(a,b)=>((a.order??1e9)-(b.order??1e9))||trLabel(a).localeCompare(trLabel(b));
-function saveBeaten(){store.set('rfg-beaten',[...BT.beaten])}
 async function showBattle(id,changed){
   const [tr]=await Promise.all([load('trainers'),load('pokemon'),load('moves'),load('areas'),load('types'),load('abilities')]);
   if(!tr){$('#bat-list').innerHTML='<p class="empty" style="padding:12px">The trainer file is missing.</p>';return}
@@ -1091,9 +1100,6 @@ async function showBattle(id,changed){
     let raf=0;const re=()=>{cancelAnimationFrame(raf);BT.shown=250;raf=requestAnimationFrame(renderBatList)};
     ['bat-q','bat-kind','bat-sort','bat-imp','bat-hide'].forEach(i=>$('#'+i).addEventListener('input',re));
     $('#bat-list').addEventListener('click',e=>{if(e.target.id==='bat-more'){BT.shown+=250;renderBatList()}});
-    document.addEventListener('change',e=>{const c=e.target.closest('input[data-beat]');if(!c)return;const id=c.dataset.beat;
-      if(c.checked)BT.beaten.add(id);else BT.beaten.delete(id);saveBeaten();
-      $$(`input[data-beat="${CSS.escape(id)}"]`).forEach(x=>{x.checked=c.checked;const r=x.closest('.trow');if(r)r.classList.toggle('is-beaten',c.checked)})});
     tr.forEach(t=>{t._hay=[t.class,t.name,t.kind,...(t.locations||[]).map(l=>areaName(l.area)),...(t.team||[]).map(m=>monName(m.pokemon))].join(' ').toLowerCase()});
     renderBatList();
   }
@@ -1107,16 +1113,16 @@ async function showBattle(id,changed){
 function renderBatList(){
   const q=$('#bat-q').value.trim().toLowerCase(),k=$('#bat-kind').value,imp=$('#bat-imp').checked,hide=$('#bat-hide').checked,sort=$('#bat-sort').value;
   const qs=q.split(/\s+/).filter(Boolean);
-  BT.list=DATA.trainers.filter(t=>(!k||(t.kind||'regular')===k)&&(!imp||t.important||IMPORTANT_KINDS.includes(t.kind))&&(!hide||!BT.beaten.has(t.id))&&qs.every(w=>t._hay.includes(w)));
+  BT.list=DATA.trainers.filter(t=>(!k||(t.kind||'regular')===k)&&(!imp||t.important||IMPORTANT_KINDS.includes(t.kind))&&(!hide||!isBeaten(t.id))&&qs.every(w=>t._hay.includes(w)));
   const firstArea=t=>(t.locations||[])[0]?areaName(t.locations[0].area):'~';
   if(sort==='name')BT.list.sort((a,b)=>trLabel(a).localeCompare(trLabel(b)));
   else if(sort==='area')BT.list.sort((a,b)=>firstArea(a).localeCompare(firstArea(b))||byStory(a,b));
   else BT.list.sort(byStory);
-  $('#bat-count').textContent=`${BT.list.length} of ${DATA.trainers.length} battles · ${BT.beaten.size} beaten`;
+  batCount();
   let h='',last=null;
   BT.list.slice(0,BT.shown).forEach(t=>{
     if(sort==='area'){const a=firstArea(t);if(a!==last){h+=`<div class="grp-h">${esc(a==='~'?'No location':a)}</div>`;last=a}}
-    const lv=Math.max(0,...(t.team||[]).map(m=>m.level||0)),b=BT.beaten.has(t.id);
+    const lv=Math.max(0,...(t.team||[]).map(m=>m.level||0)),b=isBeaten(t.id);
     h+=`<div class="row trow${b?' is-beaten':''}" data-id="${esc(t.id)}"><a href="#battle-${esc(t.id)}"><span class="nm">${esc(trLabel(t))}</span>${kindBadge(t)}<span class="sub">${esc((t.locations||[]).map(l=>areaName(l.area)).slice(0,2).join(' · ')||'–')}${t.battle==='Double'?' · Double':''}</span></a><span class="lvmax" title="Highest level">Lv ${lv||'?'}</span><input type="checkbox" class="beat" id="beat-${esc(t.id)}" data-beat="${esc(t.id)}" aria-label="Beaten ${esc(trLabel(t))}"${b?' checked':''}></div>`});
   if(BT.list.length>BT.shown)h+=`<button type="button" class="btn more" id="bat-more">Show ${Math.min(250,BT.list.length-BT.shown)} more of ${BT.list.length-BT.shown}</button>`;
   $('#bat-list').innerHTML=h||'<p class="empty" style="padding:12px">No battles match. Clear a filter to see more.</p>';
@@ -1142,42 +1148,105 @@ function teamMatrix(team){
   <div class="tbl" style="width:max-content;max-width:100%"><table class="mx"><thead><tr><th></th>${mem.map(x=>`<th class="mh" title="${esc(monName(x.m.pokemon))}">${esc(monName(x.m.pokemon).slice(0,8))}</th>`).join('')}<th></th></tr></thead><tbody>
   ${rows.map((r,i)=>`<tr class="${i<best.length?'top':''}"><th style="text-align:left">${tchip(r.a,1)}</th>${r.ms.map(v=>`<td class="x ${mcls(v)}">${v===1?'':fmtX(v)}</td>`).join('')}<td class="sum"><b>${r.se}</b> weak · ${r.res} resist</td></tr>`).join('')}</tbody></table></div>`;
 }
+function batCount(){if(DATA.trainers)$('#bat-count').textContent=`${BT.list.length} of ${DATA.trainers.length} battles · ${Progress.count('beat:')} beaten`}
 function renderBattle(t){
-  const b=BT.beaten.has(t.id);
+  const b=isBeaten(t.id);
   $('#bat-detail').innerHTML=`<a class="back" href="#battles">← All battles</a>
     <div style="display:grid;gap:8px"><div class="chips" style="align-items:center;gap:8px">${kindBadge(t)}<span class="h-sub">${esc(t.class||'')}${t.battle?' · '+esc(t.battle)+' battle':''}</span></div>
     <h1 class="h-title">${esc(t.name||t.class)}</h1>
     <label class="chk" for="beat-d-${esc(t.id)}"><input type="checkbox" id="beat-d-${esc(t.id)}" data-beat="${esc(t.id)}"${b?' checked':''}> Beaten</label></div>
-    <div class="sec"><h3>Where</h3><div class="loc-list">${(t.locations||[]).map(l=>`<div><a href="#area-${esc(l.area)}">${esc(areaName(l.area))}</a>${l.note?` <span class="note">${esc(l.note)}</span>`:''}${(l.dialogues&&l.dialogues.length)?l.dialogues.map(d=>`<blockquote class="dlg" style="margin-top:6px">${d.when?`<span class="lbl" style="display:block;font-style:normal;margin-bottom:3px">${esc(d.when)}</span>`:''}${esc(d.text)}</blockquote>`).join(''):l.dialogue?`<blockquote class="dlg" style="margin-top:6px">${esc(l.dialogue)}</blockquote>`:''}</div>`).join('')||'<span class="empty">Unknown</span>'}</div>
+    <div class="sec"><h3>Where</h3><div class="loc-list">${(t.locations||[]).map(l=>{const fe=(IX.ar.get(String(l.area))||{}).fieldEffect;return `<div><a href="#area-${esc(l.area)}">${esc(areaName(l.area))}</a>${fe?' '+fieldBadge(fe):''}${l.note?` <span class="note">${esc(l.note)}</span>`:''}${(l.dialogues&&l.dialogues.length)?l.dialogues.map(d=>`<blockquote class="dlg" style="margin-top:6px">${d.when?`<span class="lbl" style="display:block;font-style:normal;margin-bottom:3px">${esc(d.when)}</span>`:''}${esc(d.text)}</blockquote>`).join(''):l.dialogue?`<blockquote class="dlg" style="margin-top:6px">${esc(l.dialogue)}</blockquote>`:''}</div>`}).join('')||'<span class="empty">Unknown</span>'}</div>
     ${(t.items||[]).length?`<p class="note"><b>Items:</b> ${esc(t.items.join(', '))}</p>`:''}</div>
     <div class="sec"><h3>Team <span class="cnt">${(t.team||[]).length}</span></h3><div class="team">${(t.team||[]).map(monCard).join('')}</div></div>
     <div class="sec"><h3>Team weaknesses</h3>${teamMatrix(t.team||[])}</div>`;
   hydrate($('#bat-detail'));
 }
 
-/* ---------- AREAS view ---------- */
-const AR={built:false,cur:null,arrive:null,ex:null,pop:null,opener:null,showX:store.get('rfg-exits',true)!==false};
-async function showArea(id,changed){
+/* ---------- MAP tab: world grid, stitched composites and single areas, with its own back stack ---------- */
+const MH={stack:[],cur:null,back:false};
+try{const o=JSON.parse(sessionStorage.getItem('rfg-maphist')||'null');if(o&&Array.isArray(o.stack)){MH.stack=o.stack.filter(k=>typeof k==='string').slice(-100);MH.cur=typeof o.cur==='string'?o.cur:null}}catch(e){}
+function mhSave(){try{sessionStorage.setItem('rfg-maphist',JSON.stringify({stack:MH.stack,cur:MH.cur}))}catch(e){}}
+function mapVisit(key){
+  if(MH.back){MH.back=false;MH.cur=key;mhSave();return}
+  if(key===MH.cur)return;
+  if(MH.cur){MH.stack.push(MH.cur);if(MH.stack.length>100)MH.stack.shift()}
+  MH.cur=key;mhSave();
+}
+function mapBack(){
+  while(MH.stack.length&&MH.stack[MH.stack.length-1]===MH.cur)MH.stack.pop();
+  const k=MH.stack.pop();if(!k)return;MH.back=true;mhSave();
+  if(location.hash==='#'+k)route();else location.hash=k;
+}
+const keyName=k=>{if(!k)return '';if(k==='map')return 'World map';let m=k.match(/^area-(.+)$/);if(m)return areaName(m[1]);
+  m=k.match(/^map-(.+)$/);const st=m&&DATA.regionmap&&(DATA.regionmap.stitched||[]).find(s=>s.id===m[1]);return st?stShort(st):'World map'};
+const stShort=st=>String(st.name||'').split(' — ')[0];
+const FD={built:false,open:false};
+function setFind(v,focus){
+  FD.open=!!v;if(!matchMedia('(max-width:860px)').matches)store.set('rfg-find',FD.open);
+  $('#map-find').hidden=!FD.open;$('#map-lay').classList.toggle('has-find',FD.open);$('#mt-find').setAttribute('aria-expanded',String(FD.open));
+  if(FD.open&&focus)$('#area-q').focus({preventScroll:true});
+}
+function mapTool(mode,id){
+  const back=MH.stack.length?MH.stack[MH.stack.length-1]:null,b=$('#mt-back');
+  b.disabled=!back;b.title=back?'Back to '+keyName(back):'Nothing to go back to yet';b.setAttribute('aria-label',back?'Back to '+keyName(back):'Back');
+  $('#mt-world').toggleAttribute('aria-current',mode==='world');
+  const sep='<span class="sep" aria-hidden="true">›</span>',W='<a href="#map">World</a>';
+  let h;
+  if(mode==='world')h='<span aria-current="page">World</span>';
+  else if(mode==='st'){const st=DATA.regionmap&&(DATA.regionmap.stitched||[]).find(s=>s.id===id);h=W+(st?sep+`<span aria-current="page" title="${esc(st.name)}">${esc(stShort(st))}</span>`:'')}
+  else{const a=IX.ar.get(String(id)),ch=[];let x=a&&a.parent!=null?IX.ar.get(String(a.parent)):null,g=0;
+    while(x&&g++<8){if(x.parent!=null)ch.unshift(x);x=x.parent!=null?IX.ar.get(String(x.parent)):null}
+    h=W+ch.map(c=>sep+`<a href="#area-${esc(c.id)}">${esc(c.name)}</a>`).join('')+sep+`<span aria-current="page">${esc(a?a.name:'Map '+id)}</span>`}
+  $('#mt-crumbs').innerHTML=h;
+}
+async function showMapTab(mode,id){
+  const key=mode==='area'?'area-'+id:mode==='st'?'map-'+id:'map',prev=$('#v-map').dataset.key;
+  mapVisit(key);$('#v-map').dataset.key=key;
+  if(!FD.built){FD.built=true;
+    $('#mt-back').onclick=mapBack;
+    $('#mt-find').onclick=()=>setFind(!FD.open,true);
+    setFind(!matchMedia('(max-width:860px)').matches&&store.get('rfg-find',false)===true);
+    new ResizeObserver(()=>document.documentElement.style.setProperty('--mth',$('#map-tool').offsetHeight+'px')).observe($('#map-tool'));
+    $('#area-list').addEventListener('click',e=>{if(e.target.closest('a[href]')&&matchMedia('(max-width:860px)').matches)setFind(false)});
+  }
+  mapTool(mode,id);
+  $('#map-world').hidden=mode==='area';$('#area-detail').hidden=mode!=='area';
+  const toTop=()=>{if(prev===key)return;const r=$('#map-lay').getBoundingClientRect(),off=cssPx('--hh')+cssPx('--mth');if(r.top<off)window.scrollTo({top:Math.max(0,scrollY+r.top-off-6)})};
+  if(mode==='area'){if(!await showArea(id))toTop()}
+  else{toTop();await showMap(mode==='st'?id:null)}
+  await Promise.all([load('areas'),load('regionmap')]);
+  buildFind();
+  if($('#v-map').dataset.key===key)mapTool(mode,id);
+}
+/* the area search and tree, inside the Map tab */
+function buildFind(){
+  const ars=DATA.areas;if(!ars||AR.built)return;
+  AR.built=true;
+  ars.forEach(a=>{a._hay=[a.name,a.id,a.region,a.fieldEffect,...new Set((a.encounters||[]).map(e=>monName(e.pokemon)))].join(' ').toLowerCase()});
+  let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderAreaList)};
+  ['area-q','area-wild'].forEach(i=>$('#'+i).addEventListener('input',re));
+  renderAreaList();
+}
+const AR={built:false,detail:false,cur:null,arrive:null,ex:null,pop:null,opener:null,
+  showX:store.get('rfg-exits',true)!==false,ly:Object.assign({items:true,trainers:true},store.get('rfg-alayers',{}))};
+async function showArea(id){
   const [ars]=await Promise.all([load('areas'),load('pokemon'),load('types')]);
-  if(!ars){$('#area-list').innerHTML='<p class="empty" style="padding:12px">The area file is missing.</p>';return}
-  if(!AR.built){
-    AR.built=true;
-    ars.forEach(a=>{a._hay=[a.name,a.id,a.region,a.fieldEffect,...new Set((a.encounters||[]).map(e=>monName(e.pokemon)))].join(' ').toLowerCase()});
-    let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderAreaList)};
-    ['area-q','area-wild'].forEach(i=>$('#'+i).addEventListener('input',re));
-    $('#area-detail').addEventListener('click',e=>{const a=e.target.closest('a[data-focus]');if(a)MP.focus=a.dataset.focus;
+  const det=$('#area-detail');
+  if(!ars){det.innerHTML='<p class="empty">The area file is missing.</p>';return false}
+  if(!AR.detail){
+    AR.detail=true;
+    det.addEventListener('click',e=>{const a=e.target.closest('a[data-focus]');if(a)MP.focus=a.dataset.focus;
+      const lb=e.target.closest('[data-locate]');if(lb){locateEv(lb.dataset.locate);return}
       if(xClick(e,false))return;
       if(e.target.closest('#area-expand')||(e.target.closest('#area-fr')&&!e.target.closest('a,button,.xpop')))openXov(null)});
-    $('#area-detail').addEventListener('change',e=>{if(e.target.id==='area-xt')setShowX(e.target.checked)});
-    renderAreaList();
+    det.addEventListener('change',e=>{const k=e.target.dataset&&e.target.dataset.ly;if(k)setLayer(k,e.target.checked)});
   }
-  let a=id&&IX.ar.get(String(id));
-  $('#area-split').classList.toggle('has-detail',!!a);
-  if(!a)a=IX.ar.get(AR.cur)||ars.find(x=>(x.encounters||[]).length)||ars[0];
-  if(a&&(a.id!==AR.cur||!$('#area-detail').childElementCount)){AR.cur=String(a.id);renderArea(a)}
-  setCurrent($('#area-list'),a&&String(a.id));
-  const arriving=AR.arrive&&a&&AR.arrive.to===String(a.id)&&Date.now()-AR.arrive.t<8000;
-  if(id&&!changed&&!arriving)scrollDetail('area-split');
+  const a=IX.ar.get(String(id));
+  if(!a){AR.cur=null;det.innerHTML=`<h1 class="h-title">Unknown map</h1><p class="empty">No area with map id ${esc(id)}. <a href="#map">Go to the world map</a> or use Find a place.</p>`;return false}
+  const changed=String(a.id)!==AR.cur;
+  if(changed||!det.childElementCount){AR.cur=String(a.id);renderArea(a)}
+  setCurrent($('#area-list'),AR.cur);
+  return !!(AR.arrive&&AR.arrive.to===String(a.id)&&Date.now()-AR.arrive.t<8000);
 }
 function renderAreaList(){
   const q=$('#area-q').value.trim().toLowerCase(),wild=$('#area-wild').checked,qs=q.split(/\s+/).filter(Boolean);
@@ -1186,6 +1255,8 @@ function renderAreaList(){
   const byReg=new Map();all.forEach(a=>push(byReg,a.region||'Other areas',a));
   const regs=[...byReg.keys()].sort((x,y)=>(x==='Other areas')-(y==='Other areas')||byReg.get(y).length-byReg.get(x).length||x.localeCompare(y));
   let h='',n=0;const filtering=qs.length||wild;
+  const sts=((DATA.regionmap||{}).stitched||[]).filter(st=>!wild&&qs.every(w=>st.name.toLowerCase().includes(w)||st.id.includes(w)));
+  if(sts.length)h+=`<div class="grp-h">Stitched maps</div>`+sts.map(st=>`<a class="row arow" href="#map-${esc(st.id)}" data-id="map-${esc(st.id)}"><span class="nm" title="${esc(st.name)}">${esc(st.name)}</span><span class="ic"><span>${(st.areas||[]).length} maps</span></span></a>`).join('');
   regs.forEach(r=>{
     const list=byReg.get(r);let body='';
     if(filtering){list.filter(a=>match.has(String(a.id))).sort((a,b)=>a.name.localeCompare(b.name)).forEach(a=>{n++;const par=a.parent!=null&&IX.ar.get(String(a.parent));body+=row(a,0,par&&par.name!==a.name?par.name:'')})}
@@ -1198,9 +1269,9 @@ function renderAreaList(){
     }
     if(body)h+=`<div class="grp-h">${esc(r)}</div>`+body;
   });
-  $('#area-count').textContent=`${n} of ${all.length} areas`;
+  $('#area-count').textContent=`${n} of ${all.length} areas`+(sts.length?` · ${sts.length} stitched maps`:'');
   $('#area-list').innerHTML=h||'<p class="empty" style="padding:12px">No areas match. Clear the search to see more.</p>';
-  setCurrent($('#area-list'),AR.cur);
+  const k=$('#v-map').dataset.key||'';setCurrent($('#area-list'),k.startsWith('area-')?k.slice(5):k);
 }
 const TIMES=['Morning','Day','Night'];
 function encTables(enc){
@@ -1223,14 +1294,12 @@ function encTables(enc){
 }
 function renderArea(a){
   xPopClose();if(!(AR.arrive&&AR.arrive.ov&&AR.arrive.to===String(a.id)))closeXov();
-  const id=String(a.id),par=a.parent!=null?IX.ar.get(String(a.parent)):null,kids=IX.kids.get(id)||[];
-  const crumbs=[];let x=par,g=0;while(x&&g++<6){crumbs.unshift(x);x=x.parent!=null?IX.ar.get(String(x.parent)):null}
-  $('#area-detail').innerHTML=`<a class="back" href="#areas">← All areas</a>
-    <div style="display:grid;gap:8px"><div class="crumbs">${a.region&&!crumbs.some(c=>c.name===a.region)?esc(a.region)+' ›':''}${crumbs.map((c,i)=>`${i?' › ':''}<a href="#area-${esc(c.id)}">${esc(c.name)}</a>`).join('')}</div>
+  const id=String(a.id),kids=IX.kids.get(id)||[];
+  $('#area-detail').innerHTML=`<div style="display:grid;gap:8px">${a.region?`<span class="h-sub">${esc(a.region)}</span>`:''}
     <h1 class="h-title">${esc(a.name)}</h1>
-    <div class="chips" style="gap:8px;align-items:center">${a.fieldEffect?`<span class="field" title="Field effect">${esc(a.fieldEffect)}</span>`:''}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span></div></div>
+    <div class="chips" style="gap:8px;align-items:center">${fieldBadge(a.fieldEffect)}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span></div></div>
     <div class="amap" id="area-map" hidden><div class="mapimg" id="area-img"><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div><div class="abar" id="area-bar" hidden></div></div>
-    ${kids.length?`<div class="sec"><h3>Inside <span class="cnt">${kids.length}</span></h3><div class="linkset">${kids.sort((p,q)=>p.name.localeCompare(q.name)).map(k=>`<a href="#area-${esc(k.id)}">${esc(k.name)}</a>`).join('')}</div></div>`:''}
+    ${kids.length?`<div class="sec"><h3>Inside <span class="cnt">${kids.length}</span></h3><div class="linkset">${kids.slice().sort((p,q)=>p.name.localeCompare(q.name)).map(k=>`<a href="#area-${esc(k.id)}">${esc(k.name)}</a>`).join('')}</div></div>`:''}
     <div class="sec" id="area-links" hidden></div>
     <div class="sec"><h3>Wild Pokémon</h3>${(a.encounters||[]).length?encTables(a.encounters):'<p class="empty">No wild encounters here.</p>'}</div>
     <div class="sec" id="area-trainers"><h3>Trainers here</h3><p class="loading" style="padding:0">Loading trainers…</p></div>
@@ -1238,17 +1307,145 @@ function renderArea(a){
   hydrate($('#area-detail'));
   (async()=>{let im=a.image,src0=SRC.areas;if(!im){const ai=await load('area_images');im=ai&&ai[id];src0=SRC.area_images}
     if(AR.cur!==id)return;if(im)$('#area-map').hidden=false;
-    const [b]=await Promise.all([im?loadBundle(im.bundle,src0):null,load('links')]);if(AR.cur!==id)return;
+    const [b]=await Promise.all([im?loadBundle(im.bundle,src0):null,load('links'),load('events'),load('trainers'),load('items')]);if(AR.cur!==id)return;
     renderAreaMap(a,im,b&&im?b[im.key]:null)})();
-  load('trainers').then(()=>{if(AR.cur!==id)return;
+  Promise.all([load('trainers'),load('events')]).then(()=>{if(AR.cur!==id)return;
     const ids=new Set([...(a.trainers||[]),...(IX.trArea.get(id)||[]).map(t=>t.id)]);
-    const ts=[...ids].map(i=>IX.tr.get(i)||{id:i,name:pretty(i),team:[]}).sort(byStory);
-    $('#area-trainers').innerHTML=`<h3>Trainers here <span class="cnt">${ts.length}</span></h3>`+(ts.length?`<div class="tbl"><table class="t"><thead><tr><th>Trainer</th><th>Team</th><th class="n">Max Lv</th></tr></thead><tbody>${ts.map(t=>`<tr><td>${kindBadge(t)} <a href="#battle-${esc(t.id)}">${esc(trLabel(t))}</a></td><td>${(t.team||[]).map(m=>esc(monName(m.pokemon))).join(', ')}</td><td class="n">${Math.max(0,...(t.team||[]).map(m=>m.level||0))||'–'}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">No trainers here.</p>')});
-  Promise.all([load('items'),load('moves')]).then(()=>{if(AR.cur!==id)return;const it=IX.itArea.get(id)||[];const el=$('#area-items');if(!el)return;
-    el.hidden=!it.length;if(it.length)el.innerHTML=`<h3>Items here <span class="cnt">${it.length}</span></h3>`+itemGroupsHTML(it)});
+    const placed=new Map();evMarks(id).filter(m=>m.t==='t').forEach(m=>m.tids.forEach(t=>{ids.add(t);if(!placed.has(t))placed.set(t,m)}));
+    const ts=[...ids].map(i=>IX.tr.get(i)||{id:i,name:pretty(i),team:[]}).sort(byStory),nb=ts.filter(t=>isBeaten(t.id)).length;
+    $('#area-trainers').innerHTML=`<h3>Trainers here <span class="cnt">${ts.length}</span>${ts.length?` <span class="cnt">${nb} beaten</span>`:''}</h3>`+(ts.length?`<div class="tbl"><table class="t"><thead><tr><th>Beaten</th><th>Trainer</th><th>Team</th><th class="n">Max Lv</th></tr></thead><tbody>${ts.map(t=>{const b=isBeaten(t.id),m=placed.get(t.id);return `<tr class="${b?'is-beaten':''}"><td><input type="checkbox" class="pk" data-beat="${esc(t.id)}" aria-label="Beaten ${esc(trLabel(t))}"${b?' checked':''}>${m?` <button type="button" class="loc-btn" data-locate="${esc(id)}:${esc(m.e.ev)}:t" title="Show on the map">map</button>`:''}</td><td>${kindBadge(t)} <a href="#battle-${esc(t.id)}">${esc(trLabel(t))}</a></td><td>${(t.team||[]).map(m=>esc(monName(m.pokemon))).join(', ')}</td><td class="n">${Math.max(0,...(t.team||[]).map(m=>m.level||0))||'–'}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">No trainers here.</p>')});
+  Promise.all([load('items'),load('moves'),load('events')]).then(()=>{if(AR.cur!==id)return;const it=areaPicks(id);const el=$('#area-items');if(!el)return;
+    el.hidden=!it.length;if(it.length)el.innerHTML=`<h3>Items here <span class="cnt">${it.length}</span> ${progHTML(it,'area:'+id)}</h3>`+areaItemsHTML(it,id)});
   load('regionmap').then(rm=>{if(AR.cur!==id||!rm)return;const st=(rm.stitched||[]).filter(s=>(s.areas||[]).some(b=>String(b.area)===id));
-    if(st.length)$('#area-onmap').innerHTML='· On map: '+st.map(s=>`<a href="#map-${esc(s.id)}" data-focus="${esc(id)}">${esc(s.name)}</a>`).join(', ')});
+    if(st.length)$('#area-onmap').innerHTML='· On map: '+st.map(s=>`<a href="#map-${esc(s.id)}" data-focus="${esc(id)}">${esc(stShort(s))}</a>`).join(', ')});
 }
+/* items in one area: event-placed ones and wiki rows, each with a picked-up tick */
+function areaItemsHTML(list,aid){
+  const nat=(a,b)=>pkName(a).localeCompare(pkName(b),undefined,{numeric:true});
+  const grp=x=>{const it=pkItem(x);return it?itemGroup(it):'other'};
+  return IGROUPS.map(([g,l])=>{const xs=list.filter(x=>grp(x)===g).sort(nat);if(!xs.length)return '';
+    return `<div class="igrp"><span class="lbl">${l} <span class="cnt mono">${xs.length}</span></span><ul class="ilist">${xs.map(x=>pkRow(x,aid)).join('')}</ul></div>`}).join('');
+}
+function pkRow(x,aid,showArea){
+  const p=isPicked(x.key),its=x.ids.map(i=>IX.it.get(i)).filter(Boolean),nm=pkName(x);
+  return `<li class="pk-row${p?' is-picked':''}"><input type="checkbox" class="pk" data-pick="${esc(x.key)}" aria-label="Picked up: ${esc(nm)}${showArea&&x.area?' in '+esc(areaName(x.area)):''}"${p?' checked':''}>${showArea?(x.area?`<a href="#area-${esc(x.area)}">${esc(areaName(x.area))}</a>`:`<span class="pk-n">${esc((x.loc&&x.loc.areaName)||'Unknown place')}</span>`):its.length?its.map(it=>`<a href="#item-${esc(it.id)}"><b>${esc(it.name)}</b></a>${itemMoveHTML(it)}`).join(' <span class="faint">+</span> '):`<span class="pk-n"><b>${esc(nm)}</b></span>`}${x.ev&&x.ev.qty>1?`<span class="mono note">×${esc(x.ev.qty)}</span>`:''}<span class="note">${esc(pkNote(x))}</span>${x.ev&&aid?`<button type="button" class="loc-btn" data-locate="${esc(aid)}:${esc(x.ev.ev)}:i" title="Show on the map">map</button>`:''}</li>`;
+}
+
+/* ---------- placed items and trainers (data/events.json) and picked-up ticks ---------- */
+const EVK={item:'i',hidden:'i',gift:'i',trainer:'t'};
+const NO_AGG=new Set(['24']);/* map 24 is a developer test map full of alternate battles: kept out of world totals */
+const PK={v:null,area:new Map(),item:new Map(),loc:new Map(),byKey:new Map()};
+/* one entry per thing to pick up: an event (key pick:<area>:<ev>, matched to a wiki row of the same item in that area when there is one)
+   or a wiki row without an event (key pick:<itemId>:<row index>) */
+function pickIndex(){
+  const v=(DATA.items?'i':'-')+(DATA.events?'e':'-')+IX.it.size;if(PK.v===v)return PK;
+  PK.v=v;PK.area=new Map();PK.item=new Map();PK.loc=new Map();PK.byKey=new Map();
+  const E=DATA.events||{};
+  Object.keys(E).forEach(aid=>{if(aid==='_meta'||!Array.isArray(E[aid]))return;
+    E[aid].forEach(e=>{if(!e||EVK[e.kind]!=='i'||e.ev==null)return;const key=`pick:${aid}:${e.ev}`;let x=PK.byKey.get(key);
+      if(x){if(e.item&&!x.ids.includes(String(e.item)))x.ids.push(String(e.item));return}
+      x={key,area:aid,ids:e.item?[String(e.item)]:[],ev:e,loc:null,idx:null};PK.byKey.set(key,x);push(PK.area,aid,x)})});
+  (DATA.items||[]).forEach(it=>(it.locations||[]).forEach((l,idx)=>{
+    const aid=l&&l.area!=null&&l.area!==''?String(l.area):null;
+    let x=aid&&(PK.area.get(aid)||[]).find(y=>y.ev&&!y.loc&&y.ids.includes(it.id));
+    if(x){x.loc=l;x.idx=idx}
+    else{x={key:`pick:${it.id}:${idx}`,area:aid,ids:[it.id],ev:null,loc:l,idx};PK.byKey.set(x.key,x);if(aid)push(PK.area,aid,x)}
+    PK.loc.set(it.id+':'+idx,x.key)}));
+  PK.byKey.forEach(x=>x.ids.forEach(id=>push(PK.item,id,x)));
+  return PK;
+}
+const areaPicks=id=>pickIndex().area.get(String(id))||[];
+const itemPicks=id=>pickIndex().item.get(id)||[];
+const pkItem=x=>IX.it.get(x.ids[0])||null;
+const pkName=x=>x.ids.map(i=>{const it=IX.it.get(i);return it?it.name:pretty(i)}).join(' + ')||(x.ev&&x.ev.name&&!/^EV\d+$|^(Hidden)?Item$/.test(x.ev.name)?x.ev.name:'')||'Item';
+const EVKIND={item:'Item ball',hidden:'Hidden item',gift:'Given by someone',trainer:'Trainer'};
+const pkNote=x=>[x.loc&&x.loc.note?x.loc.note:x.ev?EVKIND[x.ev.kind]:'',x.ev&&(x.ev.when||[]).length?'when: '+x.ev.when.join(', '):''].filter(Boolean).join(' · ');
+const progOf=list=>({n:list.length,p:list.filter(x=>isPicked(x.key)).length});
+function progHTML(list,attr){const {n,p}=progOf(list);return `<span class="prog${n&&p===n?' all':''}" data-prog="${esc(attr)}">${p}/${n} picked up</span>`}
+function updateProg(el){const [k,...r]=el.dataset.prog.split(':'),id=r.join(':');
+  const list=k==='area'?areaPicks(id):k==='item'?itemPicks(id):[];const {n,p}=progOf(list);el.textContent=`${p}/${n} picked up`;el.classList.toggle('all',!!n&&p===n)}
+function areaEvents(id){const L=DATA.events&&DATA.events[String(id)];return Array.isArray(L)?L.filter(e=>e&&EVK[e.kind]&&e.ev!=null&&Number.isFinite(+e.x)&&Number.isFinite(+e.y)):[]}
+const evTids=e=>[...new Set([...(Array.isArray(e.trainers)?e.trainers:[]),e.trainer].filter(Boolean).map(String))];
+/* markers: one per item event, one per trainer event (story variants of the same event merged) */
+function evMarks(id){
+  id=String(id);const out=[],seen=new Map();
+  areaEvents(id).forEach(e=>{const t=EVK[e.kind],k=t+':'+e.ev;let m=seen.get(k);
+    if(!m){m={t,e,kind:e.kind,x:+e.x,y:+e.y,tids:[],alt:[],key:t==='i'?`pick:${id}:${e.ev}`:null};seen.set(k,m);out.push(m)}
+    if(t==='t')evTids(e).forEach(i=>{if(!m.tids.includes(i))m.tids.push(i)});
+    (Array.isArray(e.alt)?e.alt:[]).map(String).forEach(i=>{if(!m.alt.includes(i))m.alt.push(i)})});
+  out.forEach(m=>{m.alt=m.alt.filter(i=>!m.tids.includes(i))});
+  return out;
+}
+function evInfo(m){
+  if(m.t==='t'){const ts=m.tids.map(i=>IX.tr.get(i)).filter(Boolean),imp=ts.find(t=>IMPORTANT_KINDS.includes(t.kind)||t.important);
+    return {label:ts.length?ts.map(trLabel).join(' & '):'Trainer',kind:m.e.double?'Double battle':imp?'Important battle':'Trainer',imp:imp?(KIND_LABEL[imp.kind]?imp.kind:'regular'):null,done:m.tids.length>0&&m.tids.every(isBeaten)}}
+  const x=pickIndex().byKey.get(m.key),q=m.e.qty>1?' ×'+m.e.qty:'';
+  return {label:(x?pkName(x):'Item')+q,kind:EVKIND[m.kind],done:isPicked(m.key)};
+}
+const EVG={
+  person:'<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="3.3" r="2.5"/><path d="M1.6 11.5c0-3.1 1.9-5.1 4.4-5.1s4.4 2 4.4 5.1z"/></svg>',
+  star:()=>`<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${starPath(6,6.4,6)}"/></svg>`,
+  gift:'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.2 4h9.6v2.6H1.2zM2 6.6h8v4.9H2z"/><path d="M6 4v7.5M6 4C4.6 1.6 2.6 1.9 3.4 3.4M6 4c1.4-2.4 3.4-2.1 2.6-.6" fill="none"/></svg>'};
+function evButton(m,area,left,top,rx,ry){
+  const i=evInfo(m),g=m.t==='t'?(i.imp?EVG.star():EVG.person):m.kind==='gift'?EVG.gift:'';
+  const cls=`ev ev-${m.kind} ev-${m.t}${i.done?' done':''}${m.t==='t'?' kc-'+(i.imp||'regular'):''}${ry<14?' lb':''}${rx<15?' al':rx>85?' ar':''}`;
+  return `<button type="button" class="${cls}" style="left:${left};top:${top}" data-evp="${esc(area)}:${esc(m.e.ev)}:${m.t}" data-rx="${rx.toFixed(1)}" data-ry="${ry.toFixed(1)}"${m.key?` data-key="${esc(m.key)}"`:''}${m.tids.length?` data-tids="${esc(m.tids.join(' '))}"`:''} aria-haspopup="true" aria-expanded="false" aria-label="${esc(i.kind+': '+i.label)}">${g}<span class="xl" aria-hidden="true">${esc(i.label)}</span></button>`;
+}
+function evMarkers(id,g){
+  if(!g||!g.doors)return '';
+  return evMarks(id).filter(m=>m.x>=0&&m.y>=0&&m.x<g.tw&&m.y<g.th).map(m=>{const rx=(m.x+.5)/g.tw*100,ry=(m.y+.5)/g.th*100;return evButton(m,id,rx.toFixed(2)+'%',ry.toFixed(2)+'%',rx,ry)}).join('');
+}
+function trBlock(id){
+  const t=IX.tr.get(id),b=isBeaten(id),lv=t?Math.max(0,...(t.team||[]).map(m=>m.level||0)):0,n=t?(t.team||[]).length:0;
+  return `<div class="xp-t"><a href="#battle-${esc(id)}">${t?kindBadge(t):''}<b>${esc(t?trLabel(t):pretty(id))}</b>${t?`<br><small>${n} Pokémon${lv?' · up to Lv '+lv:''}${t.battle==='Double'?' · Double':''}</small>`:''}</a><label class="chk"><input type="checkbox" class="pk" data-beat="${esc(id)}"${b?' checked':''}> Beaten</label></div>`;
+}
+function evPopHTML(m,aid){
+  const e=m.e,when=(e.when||[]).length?`<span class="xp-n">When: ${esc(e.when.join(', '))}</span>`:e.conditional?'<span class="xp-n">Only at some point in the story</span>':'';
+  const here=!$('#area-detail').hidden&&AR.cur===aid?'':`<a href="#area-${esc(aid)}"><small>In</small> ${esc(areaName(aid))} →</a>`;
+  if(m.t==='t')return `<span class="lbl">${esc(e.double?'Double battle':'Trainer battle')}</span>${m.tids.map(trBlock).join('')||'<span class="xp-n">Trainer not matched to this guide</span>'}${m.alt.length?`<span class="xp-n">or, depending on the story:</span>${m.alt.map(trBlock).join('')}`:''}${when}${here}`;
+  const x=pickIndex().byKey.get(m.key),p=isPicked(m.key),its=x?x.ids:[];
+  const alt=m.alt.filter(i=>!its.includes(i));
+  const itl=i=>{const it=IX.it.get(i),mv=it&&it.move?moveOf(it.move):null;return `<a href="#item-${esc(i)}"><b>${esc(it?it.name:pretty(i))}</b>${e.qty>1?` ×${esc(e.qty)}`:''}${mv?` <small>${esc(mv.name)}</small>`:''}</a>`};
+  return `<span class="lbl">${esc(EVKIND[m.kind])}</span>${its.map(itl).join('')||'<span class="xp-n">Item not matched to this guide</span>'}${alt.length?`<span class="xp-n">or: ${alt.map(i=>`<a href="#item-${esc(i)}" style="display:inline;padding:0">${esc((IX.it.get(i)||{}).name||pretty(i))}</a>`).join(', ')}</span>`:''}${x&&x.loc&&x.loc.note?`<span class="xp-n">${esc(x.loc.note)}</span>`:''}${when}
+    <label class="chk"><input type="checkbox" class="pk" data-pick="${esc(m.key)}"${p?' checked':''}> Picked up</label>${here}`;
+}
+function evPopOpen(btn){
+  xPopClose();const [aid,ev,t]=btn.dataset.evp.split(':'),m=evMarks(aid).find(q=>String(q.e.ev)===ev&&q.t===t);if(!m)return;
+  const rx=+btn.dataset.rx,ry=+btn.dataset.ry,p=document.createElement('div');
+  p.className=`xpop${rx>60?' pr':rx>35?' pc':''}${ry>55?' pu':''}`;p.style.left=btn.style.left;p.style.top=btn.style.top;
+  p.setAttribute('role','dialog');p.setAttribute('aria-label',btn.getAttribute('aria-label'));
+  p.innerHTML=evPopHTML(m,aid);p.addEventListener('pointerdown',e=>e.stopPropagation());
+  btn.after(p);btn.setAttribute('aria-expanded','true');AR.pop={p,btn};
+  const f=p.querySelector('input,a');if(f)f.focus({preventScroll:true});
+}
+/* "map" buttons in the lists: show that marker and open it */
+function locateEv(k){
+  const [aid,ev,t]=k.split(':'),b=$(`#area-fr .ev[data-evp="${CSS.escape(k)}"]`);if(!b)return;
+  if(t==='i'&&!AR.ly.items)setLayer('items',true);if(t==='t'&&!AR.ly.trainers)setLayer('trainers',true);
+  b.scrollIntoView({block:'center',behavior:reduceMotion()?'auto':'smooth'});
+  setTimeout(()=>{evPopOpen(b)},reduceMotion()?0:350);
+}
+function setLayer(k,v){
+  if(k==='exits'){setShowX(v);return}
+  AR.ly[k]=!!v;store.set('rfg-alayers',AR.ly);
+  const cls='no'+k;[$('#area-map'),$('#xov')].forEach(el=>{if(el)el.classList.toggle(cls,!v)});
+  const i=$('#al-'+k);if(i)i.checked=!!v;const b=$('#xov-'+k);if(b)b.setAttribute('aria-pressed',String(!!v));
+  if(!v&&AR.pop&&AR.pop.btn.classList.contains(k==='items'?'ev-i':'ev-t'))xPopClose();
+}
+/* every tick change (user, game or backend) re-syncs checkboxes, markers and counts */
+document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closest('input[data-pick],input[data-beat]');if(!c)return;
+  if(c.dataset.pick)Progress.set(c.dataset.pick,c.checked,'user');else Progress.set('beat:'+c.dataset.beat,c.checked,'user')});
+Progress.onChange(ch=>{
+  ch.forEach(({key,value})=>{
+    if(key.startsWith('beat:'))$$(`input[data-beat="${CSS.escape(key.slice(5))}"]`).forEach(x=>{x.checked=value;const r=x.closest('.trow,tr');if(r)r.classList.toggle('is-beaten',value)});
+    else $$(`input[data-pick="${CSS.escape(key)}"]`).forEach(x=>{x.checked=value;const r=x.closest('.pk-row');if(r)r.classList.toggle('is-picked',value)})});
+  $$('.ev[data-key]').forEach(b=>b.classList.toggle('done',isPicked(b.dataset.key)));
+  $$('.ev[data-tids]').forEach(b=>b.classList.toggle('done',b.dataset.tids.split(' ').every(isBeaten)));
+  $$('[data-prog]').forEach(updateProg);
+  if(BT.built)batCount();
+  if(IT.built){if(curView==='items')renderItemList();else IT.dirty=true}
+  if(curView==='map'&&MP.reg&&!MP.st&&!$('#map-world').hidden&&$('#reg-svg')){renderRegionLayers();setCap(MP.sel)}
+});
 
 /* ---------- area exits: edge connections, doors, caves, stairs (data/links.json) ---------- */
 const XSIDES={left:'←',right:'→',top:'↑',bottom:'↓'},XORDER=['left','right','top','bottom'];
@@ -1314,7 +1511,9 @@ function xPopOpen(btn){
   const f=p.querySelector('a');if(f)f.focus({preventScroll:true});
 }
 function xPopClose(refocus){const P=AR.pop;if(!P)return;AR.pop=null;P.p.remove();P.btn.setAttribute('aria-expanded','false');if(refocus&&document.contains(P.btn))P.btn.focus({preventScroll:true})}
-document.addEventListener('click',e=>{if(AR.pop&&!e.target.closest('.xpop,[data-pop]'))xPopClose()});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-evp]');
+  if(b){e.preventDefault();if(AR.pop&&AR.pop.btn===b)xPopClose(true);else evPopOpen(b);return}
+  if(AR.pop&&!e.target.closest('.xpop,[data-pop]'))xPopClose()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&AR.pop){e.stopPropagation();xPopClose(true)}},true);
 /* clicks on exit links: remember where we arrive, open choosers */
 function xClick(e,ov){
@@ -1326,20 +1525,23 @@ function xPulse(host,g,pt){
   const s=document.createElement('span');s.className='xarr';s.setAttribute('aria-hidden','true');
   s.style.left=clamp(pt[0]/g.tw*100,0,100)+'%';s.style.top=clamp(pt[1]/g.th*100,0,100)+'%';host.appendChild(s);setTimeout(()=>s.remove(),2600);return s;
 }
-function setShowX(v){AR.showX=v;store.set('rfg-exits',v);const m=$('#area-map');if(m)m.classList.toggle('noexits',!v);const i=$('#area-xt');if(i)i.checked=v;
-  const o=$('#xov');if(o){o.classList.toggle('noexits',!v);$('#xov-x').setAttribute('aria-pressed',String(v))}if(!v)xPopClose()}
+function setShowX(v){AR.showX=!!v;store.set('rfg-exits',AR.showX);[$('#area-map'),$('#xov')].forEach(el=>{if(el)el.classList.toggle('noexits',!v)});
+  const i=$('#al-exits');if(i)i.checked=!!v;const b=$('#xov-exits');if(b)b.setAttribute('aria-pressed',String(!!v));if(!v&&AR.pop&&!AR.pop.btn.classList.contains('ev'))xPopClose()}
+const lyCls=()=>(AR.showX?'':' noexits')+(AR.ly.items?'':' noitems')+(AR.ly.trainers?'':' notrainers');
 async function renderAreaMap(a,im,src){
   const id=String(a.id),g=areaGeom(id,im),M=exitModel(id,g),box=$('#area-map');if(!box)return;
-  const marks=src?exitMarkers(M,g):'',dense=M.doors.length>16?' dense':'';
-  AR.ex={id,im,src,g,M,marks,dense};
-  box.classList.toggle('noexits',!AR.showX);
+  const xm=src?exitMarkers(M,g):'',evm=src?evMarkers(id,g):'',marks=xm+evm;
+  const hasI=/ ev-i[ "]/.test(evm),hasT=/ ev-t[ "]/.test(evm),nEv=(evm.match(/class="ev /g)||[]).length,dense=M.doors.length+nEv>24?' dense':'';
+  AR.ex={id,im,src,g,M,marks,dense,hasX:!!xm,hasI,hasT};
+  box.classList.toggle('noexits',!AR.showX);box.classList.toggle('noitems',!AR.ly.items);box.classList.toggle('notrainers',!AR.ly.trainers);
   const imgEl=$('#area-img');imgEl.hidden=!im;
   if(im)imgEl.innerHTML=src?`<div class="amf" id="area-fr" style="width:min(100%,${(im.w||320)*2}px,${(64*(im.w||4)/(im.h||3)).toFixed(2)}vh)"><img src="${src}" alt="Map of ${esc(a.name)}" width="${im.w||''}" height="${im.h||''}"><div class="xo${dense}">${marks}</div></div>`
     :'<p class="empty" style="padding:12px;color:var(--band-muted)">Map image not available yet.</p>';
   const bar=$('#area-bar');
   bar.hidden=!(M.edges.length||marks||src);
+  const lyc=(k,l,on)=>`<label class="chk" for="al-${k}"><input type="checkbox" id="al-${k}" data-ly="${k}"${on?' checked':''}> ${l}</label>`,picks=areaPicks(id);
   bar.innerHTML=`${M.edges.length?`<div class="xrow"><span class="lbl">Exits</span>${M.edges.map(e=>`<a class="xb" href="#area-${esc(e.to)}" ${xdata(e)}><span aria-hidden="true">${XSIDES[e.side]}</span> ${esc(areaName(e.to))}<span class="sr">, ${e.side} edge${e.cond?', conditional':''}</span></a>`).join('')}</div>`:''}
-    <div class="xtools">${marks?`<label class="chk" for="area-xt"><input type="checkbox" id="area-xt"${AR.showX?' checked':''}> Show exits</label>`:''}${src?`<button type="button" class="btn" id="area-expand">Larger map</button>`:''}</div>`;
+    <div class="xtools">${xm||nEv?`<span class="lbl">Show</span>`:''}${xm?lyc('exits','Exits',AR.showX):''}${hasI?lyc('items','Items',AR.ly.items):''}${hasT?lyc('trainers','Trainers',AR.ly.trainers):''}${picks.length?progHTML(picks,'area:'+id):''}${src?`<button type="button" class="btn" id="area-expand">Larger map</button>`:''}</div>`;
   box.hidden=!(im||M.edges.length||M.doors.length);
   // connected areas, grouped
   const sec=$('#area-links'),seen=new Map(),add=(to,grp,o)=>{if(!seen.has(to))seen.set(to,{to,grp,...o});else if(!o.variant)seen.get(to).variant=false};
@@ -1358,7 +1560,7 @@ async function renderAreaMap(a,im,src){
   let pt=null;if(g&&g.doors){if(A.tp)pt=[A.tp[0]+.5,A.tp[1]+.5];else{const r=(DATA.links[id]||[]).find(l=>String(l.to)===A.from);if(r)pt=[(+r.x||0)+(+r.w||1)/2,(+r.y||0)+(+r.h||1)/2]}}
   if(A.ov&&src){openXov(pt);return}
   closeXov();
-  const fr=$('#area-fr'),pe=fr&&pt?xPulse(fr,g,pt):null,hh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hh'))||0;
+  const fr=$('#area-fr'),pe=fr&&pt?xPulse(fr,g,pt):null,hh=cssPx('--hh')+cssPx('--mth');
   const r=box.getBoundingClientRect(),vh=innerHeight;let top=scrollY+r.top-hh-10;
   if(r.height>vh-hh-20&&pe){const q=pe.getBoundingClientRect();top=scrollY+q.top-(vh+hh)/2}
   window.scrollTo({top:Math.max(0,top)});
@@ -1368,17 +1570,19 @@ function openXov(pt){
   const ex=AR.ex;if(!ex||!ex.src||!ex.im)return;
   const had=$('#xov');if(!had)AR.opener=document.activeElement;closeXov();
   const a=IX.ar.get(ex.id),name=a?a.name:'Map '+ex.id,W=ex.im.w,H=ex.im.h;
-  const ov=document.createElement('div');ov.className='xov'+(AR.showX?'':' noexits');ov.id='xov';
+  const live=$('#area-fr .xo'),marks=live?live.innerHTML:ex.marks;
+  const ov=document.createElement('div');ov.className='xov'+lyCls();ov.id='xov';
   ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Larger map of '+name);
-  ov.innerHTML=`<div class="xov-h"><span class="xov-t">${esc(name)}</span>${ex.marks?`<button type="button" class="btn" id="xov-x" aria-pressed="${AR.showX}">Exits</button>`:'<span id="xov-x" hidden></span>'}<button type="button" class="btn" id="xov-close">Close</button></div>
+  const tb=(k,l,on)=>`<button type="button" class="btn" id="xov-${k}" data-lyb="${k}" aria-pressed="${on}">${l}</button>`;
+  ov.innerHTML=`<div class="xov-h"><span class="xov-t">${esc(name)}</span>${ex.hasX?tb('exits','Exits',AR.showX):''}${ex.hasI?tb('items','Items',AR.ly.items):''}${ex.hasT?tb('trainers','Trainers',AR.ly.trainers):''}<button type="button" class="btn" id="xov-close">Close</button></div>
     <div class="vp" id="xvp" tabindex="0" aria-label="Map of ${esc(name)}. Drag to pan, scroll or pinch to zoom, arrow keys pan, plus and minus zoom, Escape closes.">
-    <div class="stage" id="xstage" style="width:${W}px;height:${H}px"><img src="${ex.src}" alt="" width="${W}" height="${H}" draggable="false"><div class="xo${ex.dense}">${ex.marks}</div></div>
+    <div class="stage" id="xstage" style="width:${W}px;height:${H}px"><img src="${ex.src}" alt="" width="${W}" height="${H}" draggable="false"><div class="xo${ex.dense}">${marks}</div></div>
     <div class="zoom"><button type="button" class="btn" id="xz-in" aria-label="Zoom in">+</button><button type="button" class="btn" id="xz-out" aria-label="Zoom out">−</button><button type="button" class="btn" id="xz-fit" aria-label="Fit map" style="font-size:12px">fit</button><span class="zl" id="xz-lv"></span></div></div>`;
   document.body.appendChild(ov);document.documentElement.classList.add('xlock');
   panZoom($('#xvp'),$('#xstage'),W,H,{zin:$('#xz-in'),zout:$('#xz-out'),zfit:$('#xz-fit'),lv:$('#xz-lv')});
   if(pt&&ex.g)xPulse($('#xstage'),ex.g,pt);
   $('#xov-close').onclick=()=>closeXov(true);
-  if(ex.marks)$('#xov-x').onclick=()=>setShowX(!AR.showX);
+  $$('[data-lyb]',ov).forEach(b=>b.onclick=()=>{const k=b.dataset.lyb;setLayer(k,!(k==='exits'?AR.showX:AR.ly[k]))});
   ov.addEventListener('click',e=>xClick(e,true));
   ov.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();closeXov(true);return}
@@ -1393,10 +1597,6 @@ function closeXov(restore){
 
 const IGROUPS=[['tm','TMs and HMs'],['key','Key items'],['other','Other items']];
 function itemMoveHTML(item){if(!item.move)return '';const m=moveOf(item.move);return `${tchip(m.type,1)}<span>${esc(m.name)}</span>`}
-function itemGroupsHTML(list){
-  const nat=(a,b)=>a.item.name.localeCompare(b.item.name,undefined,{numeric:true});
-  return IGROUPS.map(([g,l])=>{const xs=list.filter(x=>itemGroup(x.item)===g).sort(nat);if(!xs.length)return '';
-    return `<div class="igrp"><span class="lbl">${l} <span class="cnt mono">${xs.length}</span></span><ul class="ilist">${xs.map(({item,loc})=>`<li><a href="#item-${esc(item.id)}"><b>${esc(item.name)}</b></a>${itemMoveHTML(item)}${loc.note?`<span class="note">${esc(loc.note)}</span>`:''}</li>`).join('')}</ul></div>`}).join('');
 }
 
 /* ---------- ITEMS view ---------- */
@@ -1404,22 +1604,25 @@ const POCKETS=['TMs & HMs','Key Items','Items','Medicine','Poké Balls','Battle 
 const IT={built:false,list:[],cur:null,learn:null,held:null};
 const pocketRank=p=>{const i=POCKETS.indexOf(p);return i<0?POCKETS.length:i};
 async function showItems(id,changed){
-  const [items]=await Promise.all([load('items'),load('moves'),load('areas'),load('types')]);
+  const [items]=await Promise.all([load('items'),load('moves'),load('areas'),load('types'),load('events')]);
   if(!items){$('#item-list').innerHTML='<p class="empty" style="padding:12px">The item file is missing.</p>';return}
   if(!IT.built){
     IT.built=true;
     const pk=[...new Set(items.map(i=>i.pocket).filter(Boolean))].sort((a,b)=>pocketRank(a)-pocketRank(b)||a.localeCompare(b));
     $('#item-pocket').insertAdjacentHTML('beforeend',pk.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join(''));
     IT.sorted=items.slice().sort((a,b)=>pocketRank(a.pocket)-pocketRank(b.pocket)||String(a.pocket||'').localeCompare(String(b.pocket||''))||a.name.localeCompare(b.name,undefined,{numeric:true}));
-    items.forEach(i=>{const m=i.move?moveOf(i.move):null;i._hay=[i.name,i.id,i.pocket,m&&m.name,...(i.locations||[]).map(l=>l.area!=null?areaName(l.area):l.areaName)].filter(Boolean).join(' ').toLowerCase()});
-    const anyLoc=items.some(i=>(i.locations||[]).length);
+    items.forEach(i=>{const m=i.move?moveOf(i.move):null;i._hay=[i.name,i.id,i.pocket,m&&m.name,...new Set(itemPicks(i.id).map(x=>x.area?areaName(x.area):x.loc&&x.loc.areaName))].filter(Boolean).join(' ').toLowerCase()});
+    const anyLoc=items.some(i=>itemPicks(i.id).length);
     $('#item-loc').disabled=!anyLoc;$('#item-loc-l').classList.toggle('faint',!anyLoc);
     if(!anyLoc)$('#item-loc-l').title='No item locations in this build yet';
     let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderItemList)};
-    ['item-q','item-pocket','item-loc'].forEach(i=>$('#'+i).addEventListener('input',re));
+    ['item-q','item-pocket','item-loc','item-hide'].forEach(i=>$('#'+i).addEventListener('input',re));
+    try{$('#item-hide').checked=store.get('rfg-hidepicked',false)===true}catch(e){}
+    $('#item-hide').addEventListener('change',e=>store.set('rfg-hidepicked',e.target.checked));
     renderItemList();
     load('pokemon').then(()=>{const it=IX.it.get(IT.cur);if(it&&curView==='items')renderItemExtras(it)});
   }
+  if(IT.dirty){IT.dirty=false;renderItemList()}
   load('pickup').then(pu=>{$('#pickup-link').hidden=!pu||!(pu.levels||[]).length;const it=IX.it.get(IT.cur);if(it&&curView==='items')renderItemExtras(it)});
   if(id==='pickup'){
     $('#item-split').classList.add('has-detail');setCurrent($('#item-list'),null);
@@ -1428,34 +1631,38 @@ async function showItems(id,changed){
   }
   let it=id&&IX.it.get(id);
   $('#item-split').classList.toggle('has-detail',!!it);
-  if(!it)it=IX.it.get(IT.cur)||IT.list.find(x=>(x.locations||[]).length)||IT.list[0]||items[0];
+  if(!it)it=IX.it.get(IT.cur)||IT.list.find(x=>itemPicks(x.id).length)||IT.list[0]||items[0];
   if(it&&(it.id!==IT.cur||!$('#item-detail').childElementCount)){IT.cur=it.id;renderItem(it)}
   setCurrent($('#item-list'),it&&it.id);
   if(id&&!changed)scrollDetail('item-split');
 }
 function renderItemList(){
   const q=$('#item-q').value.trim().toLowerCase(),pk=$('#item-pocket').value,loc=$('#item-loc').checked,qs=q.split(/\s+/).filter(Boolean);
-  IT.list=IT.sorted.filter(i=>(!pk||i.pocket===pk)&&(!loc||(i.locations||[]).length)&&qs.every(w=>i._hay.includes(w)));
-  $('#item-count').textContent=`${IT.list.length} of ${DATA.items.length} items`;
+  const hide=$('#item-hide').checked,done=i=>{const {n,p}=progOf(itemPicks(i.id));return n>0&&p===n};
+  IT.list=IT.sorted.filter(i=>(!pk||i.pocket===pk)&&(!loc||itemPicks(i.id).length)&&(!hide||!done(i))&&qs.every(w=>i._hay.includes(w)));
+  const all=[...pickIndex().byKey.values()],np=all.filter(x=>isPicked(x.key)).length;
+  $('#item-count').textContent=`${IT.list.length} of ${DATA.items.length} items · ${np}/${all.length} picked up`;
   let h='',last=null;
   IT.list.forEach(i=>{
     if(!pk&&i.pocket!==last){last=i.pocket;h+=`<div class="grp-h">${esc(i.pocket||'Other')}</div>`}
-    const m=i.move?moveOf(i.move):null,n=(i.locations||[]).length;
-    h+=`<a class="row irow" href="#item-${esc(i.id)}" data-id="${esc(i.id)}"><span class="nm">${esc(i.name)}${m?`<small>${esc(m.name)}</small>`:''}</span><span>${m?tchip(m.type,1):''}</span><span class="ic" title="${n?n+' known location'+(n>1?'s':''):''}">${n?n+'×':''}</span></a>`});
+    const m=i.move?moveOf(i.move):null,{n,p}=progOf(itemPicks(i.id));
+    h+=`<a class="row irow" href="#item-${esc(i.id)}" data-id="${esc(i.id)}"><span class="nm">${esc(i.name)}${m?`<small>${esc(m.name)}</small>`:''}</span><span>${m?tchip(m.type,1):''}</span><span class="ic" title="${n?`${n} known location${n>1?'s':''}, ${p} picked up`:''}">${n?(p?p+'/'+n:n+'×'):''}</span></a>`});
   $('#item-list').innerHTML=h||'<p class="empty" style="padding:12px">No items match. Clear a filter to see more.</p>';
   setCurrent($('#item-list'),IT.cur);
 }
 function renderItem(i){
   const m=i.move?moveOf(i.move):null,price=v=>v?`<span class="num">${Number(v).toLocaleString('en-US')}</span>`:'<span class="faint">–</span>';
-  const L=(i.locations||[]).slice().sort((a,b)=>String(a.area!=null?areaName(a.area):a.areaName||'').localeCompare(String(b.area!=null?areaName(b.area):b.areaName||'')));
-  const anyLoc=(DATA.items||[]).some(x=>(x.locations||[]).length);
+  const nmOf=x=>String(x.area?areaName(x.area):(x.loc&&x.loc.areaName)||'~');
+  const L=itemPicks(i.id).slice().sort((a,b)=>nmOf(a).localeCompare(nmOf(b))||(a.ev?+a.ev.ev:0)-(b.ev?+b.ev.ev:0));
+  const anyLoc=(DATA.items||[]).some(x=>(x.locations||[]).length)||!!DATA.events;
   $('#item-detail').innerHTML=`<a class="back" href="#items">← All items</a>
     <div style="display:grid;gap:8px"><div class="chips" style="align-items:center;gap:8px"><span class="badge k-regular">${esc(i.pocket||'Item')}</span><span class="h-sub mono">${esc(i.id)}</span></div>
     <h1 class="h-title">${esc(i.name)}</h1>${i.description?`<p class="desc">${esc(i.description)}</p>`:''}</div>
     <dl class="facts" style="margin:0"><div><dt>Buy</dt><dd>${i.buy?price(i.buy):'Not sold'}</dd></div><div><dt>Sell</dt><dd>${price(i.sell)}</dd></div>${m?`<div><dt>Teaches</dt><dd>${esc(m.name)}</dd></div>`:''}</dl>
     ${m?`<div class="sec"><h3>Move</h3><div class="tbl"><table class="t"><thead><tr><th class="n"></th><th>Move</th><th>Type</th><th>Cat.</th><th class="n">Pow</th><th class="n">Acc</th><th class="n">PP</th><th>Effect</th></tr></thead><tbody>${moveRow(i.name,i.move)}</tbody></table></div></div>
       <div class="sec" id="item-learn"><h3>Pokémon that can learn it</h3><p class="loading" style="padding:0">Loading Pokédex…</p></div>`:''}
-    <div class="sec"><h3>Where to find <span class="cnt">${L.length}</span></h3>${L.length?`<div class="tbl"><table class="t"><thead><tr><th>Area</th><th>Note</th><th>Source</th></tr></thead><tbody>${L.map(l=>`<tr><td>${l.area!=null&&l.area!==''?`<a href="#area-${esc(l.area)}">${esc(IX.ar.has(String(l.area))?areaName(l.area):(l.areaName||areaName(l.area)))}</a>`:esc(l.areaName||'Unknown')+' <span class="faint" title="Not matched to a map in this guide">(no map)</span>'}</td><td class="wrap">${esc(l.note||'')}</td><td>${srcLink(l.source)}</td></tr>`).join('')}</tbody></table></div>${wikiNote()}`:`<p class="empty">${anyLoc?'No known location for this item.':'Item locations are not in this build yet.'}</p>`}</div>
+    <div class="sec"><h3>Where to find <span class="cnt">${L.length}</span>${L.length?' '+progHTML(L,'item:'+i.id):''}</h3>${L.length?`<div class="tbl"><table class="t"><thead><tr><th>Got it</th><th>Area</th><th>Note</th><th>Source</th></tr></thead><tbody>${L.map(x=>{const l=x.loc||{},p=isPicked(x.key),an=x.area?(IX.ar.has(x.area)?areaName(x.area):(l.areaName||areaName(x.area))):'';
+      return `<tr class="pk-row${p?' is-picked':''}"><td><input type="checkbox" class="pk" data-pick="${esc(x.key)}" aria-label="Picked up${an?' in '+esc(an):''}"${p?' checked':''}></td><td>${x.area?`<a href="#area-${esc(x.area)}">${esc(an)}</a>${x.ev?` <span class="faint mono" title="Placed on the area map">◉</span>`:''}`:esc(l.areaName||'Unknown')+' <span class="faint" title="Not matched to a map in this guide">(no map)</span>'}</td><td class="wrap">${esc(l.note||(x.ev?[EVKIND[x.ev.kind],x.ev.qty>1?'×'+x.ev.qty:'',(x.ev.when||[]).length?'when: '+x.ev.when.join(', '):''].filter(Boolean).join(' · '):''))}</td><td>${l.source?srcLink(l.source):x.ev?'<span class="faint">game data</span>':''}</td></tr>`}).join('')}</tbody></table></div>${wikiNote()}`:`<p class="empty">${anyLoc?'No known location for this item.':'Item locations are not in this build yet.'}</p>`}</div>
     <div class="sec" id="item-held" hidden></div>
     <div class="sec" id="item-pickup" hidden></div>`;
   renderItemExtras(i);
