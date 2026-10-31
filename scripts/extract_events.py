@@ -428,47 +428,55 @@ def main():
     print("unmatched trainer opponents:", unmatched_tr.most_common(30))
     print("unmatched item symbols:", unmatched_it.most_common(20))
     report_wiki(out, items_json, areas)
+    placed = {i for v in out.values() if isinstance(v, list) for r in v for i in r["trainers"] + r.get("alt", [])}
+    imp = [t for t in trainers_json if t.get("important") and t["id"] not in placed]
+    print(f"important trainers not placed (autorun cutscene battles etc.): {len(imp)} of "
+          f"{sum(1 for t in trainers_json if t.get('important'))}; e.g.", [t["id"] for t in imp[:8]])
     report_sizes(out, images)
     if args.debug_dir and args.maps_dir and args.spot:
         render_spots(args, out, images)
 
 
 def report_wiki(out, items_json, areas):
-    """Compare per-area item(+hidden) counts with items.json wiki locations."""
-    wiki = collections.Counter()
-    wiki_items = collections.defaultdict(set)
+    """Compare item(+hidden) pickups with items.json wiki locations, grouped by area name.
+
+    Wiki rows often use a parent map id ("Tourmaline Desert" 148) while the
+    balls sit on child maps with the same name, so areas are compared by name.
+    """
+    def group(aid):
+        a = areas.get(aid)
+        return (a or {}).get("name") or aid
+
+    wiki_items, game_items = collections.defaultdict(set), collections.defaultdict(set)
+    wiki_n, game_n = collections.Counter(), collections.Counter()
     for it in items_json:
         for loc in it.get("locations") or []:
             note = (loc.get("note") or "").lower()
-            if re.search(r"received|given|gift|purchase|buy|sold|shop|mart|reward|trade", note):
+            if not loc.get("area") or re.search(r"received|given|gift|purchase|buy|sold|shop|mart|reward|trade", note):
                 continue
             if re.fullmatch(r"available (after|during) [^.]*\.", note):
                 continue  # shop-stock style rows ("Available after Badge 08.")
-            wiki[loc["area"]] += 1
-            wiki_items[loc["area"]].add(it["id"])
-    game = collections.Counter()
-    game_items = collections.defaultdict(set)
+            g = group(loc["area"])
+            wiki_items[g].add(it["id"])
+            wiki_n[g] += 1
     for aid, recs in out.items():
         if aid == "_meta":
             continue
         for r in recs:
-            if r["kind"] in ("item", "hidden"):
-                game[aid] += 1
-                if r["item"]:
-                    game_items[aid].add(r["item"])
-    both = set(wiki) & set(game)
-    agree = sum(1 for a in both if wiki_items[a] & game_items[a])
-    overlap = sum(len(wiki_items[a] & game_items[a]) for a in both)
-    print(f"wiki check: areas with wiki pickups {len(wiki)}, with game balls {len(game)}, both {len(both)}; "
-          f"areas sharing >=1 item id {agree}; shared (area,item) pairs {overlap} of wiki "
-          f"{sum(len(v) for v in wiki_items.values())} / game {sum(len(v) for v in game_items.values())}")
-    diffs = sorted(both, key=lambda a: -abs(wiki[a] - game[a]))[:12]
-    print("  largest count gaps (area: wiki vs game):",
-          ", ".join(f"{a} {areas.get(a, {}).get('name')}: {wiki[a]} vs {game[a]}" for a in diffs))
-    only_wiki = sorted(set(wiki) - set(game), key=lambda a: -wiki[a])[:10]
-    print("  wiki-only areas:", ", ".join(f"{a} {areas.get(a, {}).get('name')} ({wiki[a]})" for a in only_wiki))
-    only_game = sorted(set(game) - set(wiki), key=lambda a: -game[a])[:10]
-    print("  game-only areas:", ", ".join(f"{a} {areas.get(a, {}).get('name')} ({game[a]})" for a in only_game))
+            if r["kind"] in ("item", "hidden") and r["item"]:
+                g = group(aid)
+                game_items[g].add(r["item"])
+                game_n[g] += 1
+    both = set(wiki_items) & set(game_items)
+    wp = sum(len(v) for v in wiki_items.values())
+    hit = sum(len(wiki_items[g] & game_items.get(g, set())) for g in wiki_items)
+    print(f"wiki check (by area name): wiki groups {len(wiki_items)}, game groups {len(game_items)}, both {len(both)}; "
+          f"wiki (area,item) pairs found among game balls: {hit}/{wp} ({100 * hit / max(wp, 1):.0f}%)")
+    gaps = sorted(both, key=lambda g: -abs(wiki_n[g] - game_n[g]))[:10]
+    print("  largest count gaps (wiki vs game):", "; ".join(f"{g}: {wiki_n[g]} vs {game_n[g]}" for g in gaps))
+    print("  wiki-only:", "; ".join(f"{g} ({wiki_n[g]})" for g in sorted(set(wiki_items) - set(game_items),
+                                                                    key=lambda g: -wiki_n[g])[:10]))
+    return {"wikiPairsFound": f"{hit}/{wp}"}
 
 
 def report_sizes(out, images):
