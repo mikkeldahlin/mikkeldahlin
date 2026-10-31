@@ -312,6 +312,80 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .crumbs{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:13.5px;color:var(--muted)}
 .crumbs a{color:var(--muted)}
 .linkset{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+/* area exits: edge strips, door rings, chooser, arrival pulse, larger view */
+.amap{display:grid;gap:8px}
+.mapimg{position:relative;overflow:visible;max-height:none}
+.amf{position:relative;display:block;line-height:0;max-width:100%;cursor:zoom-in}
+.amf img{width:100%;max-width:none;height:auto}
+.xo{position:absolute;inset:0;line-height:1.2}
+.noexits .xo,.noexits .xpop{display:none}
+.xe{position:absolute;display:block;--t:calc(18px * var(--iz,1));text-decoration:none;color:var(--map-bg)}
+.xe.s-left,.xe.s-right{top:var(--p);height:max(var(--t),var(--s));width:var(--t);transform:translateY(-50%)}
+.xe.s-top,.xe.s-bottom{left:var(--p);width:max(var(--t),var(--s));height:var(--t);transform:translateX(-50%)}
+.xe.s-left{left:0}.xe.s-right{right:0}.xe.s-top{top:0}.xe.s-bottom{bottom:0}
+.xe::before{content:"";position:absolute;background:var(--box-hot);opacity:.6;border-radius:2px;--b:calc(3px * var(--iz,1))}
+.xe.s-left::before,.xe.s-right::before{top:2px;bottom:2px;width:var(--b)}
+.xe.s-top::before,.xe.s-bottom::before{left:2px;right:2px;height:var(--b)}
+.xe.s-left::before{left:0}.xe.s-right::before{right:0}.xe.s-top::before{top:0}.xe.s-bottom::before{bottom:0}
+.xe.cond.s-left::before,.xe.cond.s-right::before{background:repeating-linear-gradient(to bottom,var(--box-hot) 0 5px,transparent 5px 8px)}
+.xe.cond.s-top::before,.xe.cond.s-bottom::before{background:repeating-linear-gradient(to right,var(--box-hot) 0 5px,transparent 5px 8px)}
+.xc{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--box-hot);opacity:.82;display:grid;place-items:center;transform:scale(var(--iz,1));box-shadow:0 0 0 1px color-mix(in srgb,var(--map-bg) 55%,transparent)}
+.xc svg{width:12px;height:12px;fill:none;stroke:var(--map-bg);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.s-right .xc svg{transform:rotate(90deg)}.s-bottom .xc svg{transform:rotate(180deg)}.s-left .xc svg{transform:rotate(-90deg)}
+.xe:hover .xc,.xe:focus-visible .xc{opacity:1}
+.xe:hover::before,.xe:focus-visible::before{opacity:.95}
+.xd{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;padding:0;border:0;background:none;display:grid;place-items:center;transform:scale(var(--iz,1));cursor:pointer;text-decoration:none;color:inherit;font:inherit}
+.xd::before{content:"";width:9px;height:9px;border:1.5px solid var(--box-hot);border-radius:50%;background:color-mix(in srgb,var(--map-bg) 40%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--map-bg) 65%,transparent)}
+.xd.h-door::before{border-radius:1.5px}
+.xd.h-cave::before{border-radius:50% 50% 1px 1px;height:8px}
+.xd.h-stairs::before{width:8px;height:8px;border-radius:1px;transform:rotate(45deg)}
+.xd.h-npc::before{width:6px;height:6px;border-width:1.5px;background:var(--box-hot);opacity:.75}
+.xd.cond::before{border-style:dashed}
+.xd[data-pop]::after{content:"";position:absolute;right:3px;top:3px;width:4px;height:4px;border-radius:50%;background:var(--box-line);box-shadow:0 0 0 1px var(--map-bg)}
+.xd:hover::before,.xd:focus-visible::before,.xd[aria-expanded="true"]::before{background:var(--box-hot);opacity:1}
+.xo.dense .xd{width:16px;height:16px;margin:-8px 0 0 -8px}
+.xo.dense .xd::before{width:7px;height:7px}
+.xo.dense .xd.h-npc::before{width:5px;height:5px}
+.xl{position:absolute;z-index:2;font:600 11.5px/1.2 var(--f-body);letter-spacing:.02em;white-space:nowrap;padding:3px 6px;border-radius:2px;background:var(--band);color:var(--band-fg);border:1px solid var(--band-line);box-shadow:var(--shadow);pointer-events:none;opacity:0;visibility:hidden}
+.xl i{font-weight:400;color:var(--band-muted)}
+.xe:hover .xl,.xe:focus-visible .xl,.xd:hover .xl,.xd:focus-visible .xl{opacity:1;visibility:visible}
+.xe:hover,.xe:focus-visible,.xd:hover,.xd:focus-visible{z-index:3}
+.xd .xl{bottom:calc(100% + 2px);left:50%;transform:translateX(-50%)}
+.xd.lb .xl{bottom:auto;top:calc(100% + 2px)}
+.xd.al .xl{left:0;transform:none}.xd.ar .xl{left:auto;right:0;transform:none}
+.s-left .xl{left:calc(100% + 5px);top:50%;transform:translateY(-50%)}
+.s-right .xl{right:calc(100% + 5px);top:50%;transform:translateY(-50%)}
+.s-top .xl{top:calc(100% + 5px);left:50%;transform:translateX(-50%)}
+.s-bottom .xl{bottom:calc(100% + 5px);left:50%;transform:translateX(-50%)}
+.s-top.al .xl,.s-bottom.al .xl{left:0;transform:none}.s-top.ar .xl,.s-bottom.ar .xl{left:auto;right:0;transform:none}
+.s-left.at .xl,.s-right.at .xl{top:0;transform:none}.s-left.ab .xl,.s-right.ab .xl{top:auto;bottom:0;transform:none}
+.xpop{position:absolute;z-index:6;display:grid;gap:2px;min-width:150px;max-width:240px;padding:6px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);font-size:13.5px;line-height:1.3;transform-origin:0 0;transform:scale(var(--iz,1)) translate(-12px,12px)}
+.xpop.pc{transform:scale(var(--iz,1)) translate(-50%,12px)}.xpop.pr{transform:scale(var(--iz,1)) translate(calc(-100% + 12px),12px)}
+.xpop.pu{transform:scale(var(--iz,1)) translate(-12px,calc(-100% - 12px))}.xpop.pu.pc{transform:scale(var(--iz,1)) translate(-50%,calc(-100% - 12px))}.xpop.pu.pr{transform:scale(var(--iz,1)) translate(calc(-100% + 12px),calc(-100% - 12px))}
+.xpop .lbl{padding:2px 4px 4px}
+.xpop a{display:block;padding:5px 6px;border-radius:2px;color:var(--fg);text-decoration:none;white-space:normal}
+.xpop a:hover,.xpop a:focus-visible{background:var(--accent-soft)}
+.xpop small{color:var(--muted)}
+.xarr{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:2.5px solid var(--box-hot);box-shadow:0 0 0 2px color-mix(in srgb,var(--map-bg) 60%,transparent);pointer-events:none;z-index:4;transform:scale(var(--iz,1));animation:xarr .95s ease-out 2 both}
+@keyframes xarr{0%{transform:scale(calc(var(--iz,1) * .35));opacity:1}70%{opacity:.9}100%{transform:scale(calc(var(--iz,1) * 1.7));opacity:0}}
+.abar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
+.xrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+.xrow .lbl{margin-right:2px}
+.xb{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--fg);text-decoration:none;font-size:13.5px;font-weight:500}
+.xb span[aria-hidden]{color:var(--accent);font-family:var(--f-mono)}
+.xb:hover{border-color:var(--accent-line)}
+.xtools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-left:auto}
+.xtools .btn{font-size:13.5px;padding:5px 10px}
+.xgrp{display:grid;gap:5px}
+.xgrp .linkset small{font-size:11px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.xlock,.xlock body{overflow:hidden}
+.xov{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:var(--map-bg)}
+.xov-h{display:flex;align-items:center;gap:8px 10px;padding:max(8px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--band);color:var(--band-fg);border-bottom:1px solid var(--band-line)}
+.xov-t{flex:1 1 auto;min-width:0;font:800 20px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xov-h .btn{font-size:13.5px;padding:6px 10px;flex:none;color:var(--fg)}
+.xov-h .btn[aria-pressed="true"]{color:var(--accent-fg)}
+.xov .vp{flex:1 1 auto;height:auto;min-height:0;border:0;border-radius:0}
 
 /* map */
 .mapbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
@@ -677,6 +751,7 @@ async function route(){
   const {view,id}=parseHash();
   VIEWS.forEach(v=>{$('#v-'+v).hidden=v!==view});
   $$('.tabs a').forEach(a=>{if(a.dataset.v===view){a.setAttribute('aria-current','page');const n=a.parentNode;if(n.scrollWidth>n.clientWidth){const l=a.offsetLeft-n.offsetLeft;if(l<n.scrollLeft||l+a.offsetWidth>n.scrollLeft+n.clientWidth)n.scrollLeft=l-16}}else a.removeAttribute('aria-current')});
+  if(view!=='areas'){xPopClose();closeXov()}
   const changed=curView!==view; curView=view;
   try{
     if(view==='types') await showTypes(id);
@@ -976,7 +1051,7 @@ function renderBattle(t){
 }
 
 /* ---------- AREAS view ---------- */
-const AR={built:false,cur:null};
+const AR={built:false,cur:null,arrive:null,ex:null,pop:null,opener:null,showX:store.get('rfg-exits',true)!==false};
 async function showArea(id,changed){
   const [ars]=await Promise.all([load('areas'),load('pokemon'),load('types')]);
   if(!ars){$('#area-list').innerHTML='<p class="empty" style="padding:12px">The area file is missing.</p>';return}
@@ -985,7 +1060,10 @@ async function showArea(id,changed){
     ars.forEach(a=>{a._hay=[a.name,a.id,a.region,a.fieldEffect,...new Set((a.encounters||[]).map(e=>monName(e.pokemon)))].join(' ').toLowerCase()});
     let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderAreaList)};
     ['area-q','area-wild'].forEach(i=>$('#'+i).addEventListener('input',re));
-    $('#area-detail').addEventListener('click',e=>{const a=e.target.closest('a[data-focus]');if(a)MP.focus=a.dataset.focus});
+    $('#area-detail').addEventListener('click',e=>{const a=e.target.closest('a[data-focus]');if(a)MP.focus=a.dataset.focus;
+      if(xClick(e,false))return;
+      if(e.target.closest('#area-expand')||(e.target.closest('#area-fr')&&!e.target.closest('a,button,.xpop')))openXov(null)});
+    $('#area-detail').addEventListener('change',e=>{if(e.target.id==='area-xt')setShowX(e.target.checked)});
     renderAreaList();
   }
   let a=id&&IX.ar.get(String(id));
@@ -993,7 +1071,8 @@ async function showArea(id,changed){
   if(!a)a=IX.ar.get(AR.cur)||ars.find(x=>(x.encounters||[]).length)||ars[0];
   if(a&&(a.id!==AR.cur||!$('#area-detail').childElementCount)){AR.cur=String(a.id);renderArea(a)}
   setCurrent($('#area-list'),a&&String(a.id));
-  if(id&&!changed)scrollDetail('area-split');
+  const arriving=AR.arrive&&a&&AR.arrive.to===String(a.id)&&Date.now()-AR.arrive.t<8000;
+  if(id&&!changed&&!arriving)scrollDetail('area-split');
 }
 function renderAreaList(){
   const q=$('#area-q').value.trim().toLowerCase(),wild=$('#area-wild').checked,qs=q.split(/\s+/).filter(Boolean);
@@ -1038,22 +1117,24 @@ function encTables(enc){
   return h;
 }
 function renderArea(a){
+  xPopClose();if(!(AR.arrive&&AR.arrive.ov&&AR.arrive.to===String(a.id)))closeXov();
   const id=String(a.id),par=a.parent!=null?IX.ar.get(String(a.parent)):null,kids=IX.kids.get(id)||[];
   const crumbs=[];let x=par,g=0;while(x&&g++<6){crumbs.unshift(x);x=x.parent!=null?IX.ar.get(String(x.parent)):null}
   $('#area-detail').innerHTML=`<a class="back" href="#areas">← All areas</a>
     <div style="display:grid;gap:8px"><div class="crumbs">${a.region&&!crumbs.some(c=>c.name===a.region)?esc(a.region)+' ›':''}${crumbs.map((c,i)=>`${i?' › ':''}<a href="#area-${esc(c.id)}">${esc(c.name)}</a>`).join('')}</div>
     <h1 class="h-title">${esc(a.name)}</h1>
     <div class="chips" style="gap:8px;align-items:center">${a.fieldEffect?`<span class="field" title="Field effect">${esc(a.fieldEffect)}</span>`:''}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span></div></div>
-    <div class="mapimg" id="area-img" hidden><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div>
+    <div class="amap" id="area-map" hidden><div class="mapimg" id="area-img"><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div><div class="abar" id="area-bar" hidden></div></div>
     ${kids.length?`<div class="sec"><h3>Inside <span class="cnt">${kids.length}</span></h3><div class="linkset">${kids.sort((p,q)=>p.name.localeCompare(q.name)).map(k=>`<a href="#area-${esc(k.id)}">${esc(k.name)}</a>`).join('')}</div></div>`:''}
+    <div class="sec" id="area-links" hidden></div>
     <div class="sec"><h3>Wild Pokémon</h3>${(a.encounters||[]).length?encTables(a.encounters):'<p class="empty">No wild encounters here.</p>'}</div>
     <div class="sec" id="area-trainers"><h3>Trainers here</h3><p class="loading" style="padding:0">Loading trainers…</p></div>
     <div class="sec" id="area-items" hidden></div>`;
   hydrate($('#area-detail'));
   (async()=>{let im=a.image,src0=SRC.areas;if(!im){const ai=await load('area_images');im=ai&&ai[id];src0=SRC.area_images}
-    if(!im||AR.cur!==id)return;const el=$('#area-img');if(!el)return;el.hidden=false;
-    const b=await loadBundle(im.bundle,src0);if(AR.cur!==id)return;const src=b&&b[im.key];
-    el.innerHTML=src?`<img src="${src}" alt="Map of ${esc(a.name)}" width="${im.w||''}" height="${im.h||''}">`:'<p class="empty" style="padding:12px;color:var(--band-muted)">Map image not available yet.</p>'})();
+    if(AR.cur!==id)return;if(im)$('#area-map').hidden=false;
+    const [b]=await Promise.all([im?loadBundle(im.bundle,src0):null,load('links')]);if(AR.cur!==id)return;
+    renderAreaMap(a,im,b&&im?b[im.key]:null)})();
   load('trainers').then(()=>{if(AR.cur!==id)return;
     const ids=new Set([...(a.trainers||[]),...(IX.trArea.get(id)||[]).map(t=>t.id)]);
     const ts=[...ids].map(i=>IX.tr.get(i)||{id:i,name:pretty(i),team:[]}).sort(byStory);
@@ -1062,6 +1143,147 @@ function renderArea(a){
     el.hidden=!it.length;if(it.length)el.innerHTML=`<h3>Items here <span class="cnt">${it.length}</span></h3>`+itemGroupsHTML(it)});
   load('regionmap').then(rm=>{if(AR.cur!==id||!rm)return;const st=(rm.stitched||[]).filter(s=>(s.areas||[]).some(b=>String(b.area)===id));
     if(st.length)$('#area-onmap').innerHTML='· On map: '+st.map(s=>`<a href="#map-${esc(s.id)}" data-focus="${esc(id)}">${esc(s.name)}</a>`).join(', ')});
+}
+
+/* ---------- area exits: edge connections, doors, caves, stairs (data/links.json) ---------- */
+const XSIDES={left:'←',right:'→',top:'↑',bottom:'↓'},XORDER=['left','right','top','bottom'];
+const XHINT={door:'Door',cave:'Cave',stairs:'Stairs'};
+const XCHEV='<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 8.8 7 5.3l3.5 3.5"/></svg>';
+const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* tile grid of a map image; door markers only when the image matches the map size in links.json */
+function areaGeom(id,im){
+  const ms=((DATA.links||{})._meta||{}).mapSizes||{},sz=Array.isArray(ms[id])?ms[id].map(Number):null;
+  let t=im&&Array.isArray(im.tiles)?im.tiles.map(Number):null;
+  if(!t&&im&&im.w&&im.h&&im.scale)t=[Math.round(im.w/(32*im.scale)),Math.round(im.h/(32*im.scale))];
+  const same=!!t&&(!sz||(sz[0]===t[0]&&sz[1]===t[1])),u=sz&&!same?sz:(t||sz);
+  if(!u||!(u[0]>0&&u[1]>0))return null;
+  return {tw:u[0],th:u[1],doors:same};
+}
+/* links that share a box or a side are story variants: one marker, the first unconditional target wins
+   when they share a name; different names get a chooser */
+function xPick(G){
+  const seen=new Set();G.tos=G.tos.filter(t=>!seen.has(t.to)&&seen.add(t.to));
+  G.multi=new Set(G.tos.map(t=>areaName(t.to))).size>1;
+  const p=G.multi?G.tos[0]:(G.tos.find(t=>!t.cond)||G.tos[0]);
+  G.to=p.to;G.tp=p.tp;G.cond=G.tos.every(t=>t.cond);G.alts=G.multi?[]:G.tos.filter(t=>t!==p).map(t=>t.to);return G;
+}
+function exitModel(id,g){
+  const L=DATA.links&&DATA.links[id],em=[],bm=new Map();
+  (Array.isArray(L)?L:[]).forEach(l=>{if(!l||l.to==null)return;const to=String(l.to);if(to===id||!IX.ar.has(to))return;
+    const x=+l.x||0,y=+l.y||0,w=+l.w||1,h=+l.h||1,cond=!!l.conditional;
+    const tp=l.tx!=null&&l.ty!=null&&Number.isFinite(+l.tx)&&Number.isFinite(+l.ty)?[+l.tx,+l.ty]:null,t={to,cond,tp};
+    let side=l.kind==='door'||l.npc?null:(XSIDES[l.side]?l.side:null);
+    if(!side&&l.kind!=='door'&&!l.npc&&g)side=x<=0?'left':x+w>=g.tw?'right':y<=0?'top':y+h>=g.th?'bottom':null;
+    if(side){const v=side==='left'||side==='right',a0=v?y:x,b0=v?y+h:x+w,nm=areaName(to);
+      let e=em.find(o=>o.side===side&&(o.tos.some(q=>q.to===to)||(o.nm===nm&&a0<=o.b&&b0>=o.a)));
+      if(!e)em.push(e={side,nm,a:a0,b:b0,tos:[]});e.a=Math.min(e.a,a0);e.b=Math.max(e.b,b0);e.tos.push(t)}
+    else{const k=[x,y,w,h].join(',');let d=bm.get(k);if(!d)bm.set(k,d={x0:x,y0:y,x1:x+w,y1:y+h,hint:null,npc:true,tos:[]});
+      d.hint=d.hint||(XHINT[l.hint]?l.hint:null);d.npc=d.npc&&!!l.npc;d.tos.push(t)}});
+  const edges=em.map(xPick).sort((a,b)=>XORDER.indexOf(a.side)-XORDER.indexOf(b.side)||a.a-b.a);
+  const doors=[];
+  [...bm.values()].map(xPick).forEach(d=>{
+    const m=!d.multi&&doors.find(o=>!o.multi&&o.to===d.to&&o.npc===d.npc&&d.x0<=o.x1+1&&d.x1>=o.x0-1&&d.y0<=o.y1+1&&d.y1>=o.y0-1);
+    if(!m){doors.push(d);return}
+    m.x0=Math.min(m.x0,d.x0);m.y0=Math.min(m.y0,d.y0);m.x1=Math.max(m.x1,d.x1);m.y1=Math.max(m.y1,d.y1);
+    m.cond=m.cond&&d.cond;m.hint=m.hint||d.hint;m.tp=m.tp||d.tp;d.alts.forEach(a=>{if(!m.alts.includes(a))m.alts.push(a)})});
+  return {edges,doors};
+}
+const xdata=t=>`data-to="${esc(t.to)}"${t.tp?` data-tx="${t.tp[0]}" data-ty="${t.tp[1]}"`:''}`;
+function exitMarkers(M,g){
+  if(!g)return '';let h='';
+  M.edges.forEach(e=>{const v=e.side==='left'||e.side==='right',n=v?g.th:g.tw,p=clamp((e.a+e.b)/2/n*100,0,100),s=clamp((e.b-e.a)/n*100,0,100),nm=areaName(e.to);
+    const al=v?(p<12?' at':p>88?' ab':''):(p<15?' al':p>85?' ar':'');
+    h+=`<a class="xe s-${e.side}${e.cond?' cond':''}${al}" style="--p:${p.toFixed(2)}%;--s:${s.toFixed(2)}%" href="#area-${esc(e.to)}" ${xdata(e)} aria-label="Exit ${e.side}: ${esc(nm)}${e.cond?' (conditional)':''}"><span class="xc">${XCHEV}<span class="xl" aria-hidden="true">${XSIDES[e.side]} ${esc(nm)}</span></span></a>`});
+  if(g.doors)M.doors.forEach((d,i)=>{const cx=clamp((d.x0+d.x1)/2/g.tw*100,0,100),cy=clamp((d.y0+d.y1)/2/g.th*100,0,100),nm=areaName(d.to);
+    const kind=d.npc?'Person':XHINT[d.hint]||'Entrance',cls=`xd h-${d.npc?'npc':d.hint||'x'}${d.cond?' cond':''}${cy<14?' lb':''}${cx<15?' al':cx>85?' ar':''}`,pos=`left:${cx.toFixed(2)}%;top:${cy.toFixed(2)}%`;
+    if(d.multi)h+=`<button type="button" class="${cls}" style="${pos}" data-pop="${i}" aria-haspopup="true" aria-expanded="false" aria-label="${kind} leading to one of ${d.tos.length} places"><span class="xl" aria-hidden="true">${d.npc?'Person: ':''}${d.tos.length} destinations</span></button>`;
+    else h+=`<a class="${cls}" style="${pos}" href="#area-${esc(d.to)}" ${xdata(d)} aria-label="${kind} to ${esc(nm)}${d.npc?' (someone takes you there)':''}${d.cond?' (conditional)':''}"><span class="xl" aria-hidden="true">${d.npc?'Person → ':'→ '}${esc(nm)}${d.cond?' <i>(conditional)</i>':''}</span></a>`});
+  return h;
+}
+function xPopOpen(btn){
+  xPopClose();const ex=AR.ex,d=ex&&ex.M.doors[+btn.dataset.pop];if(!d)return;
+  const cx=parseFloat(btn.style.left),cy=parseFloat(btn.style.top),p=document.createElement('div');
+  p.className=`xpop${cx>60?' pr':cx>35?' pc':''}${cy>55?' pu':''}`;p.style.left=btn.style.left;p.style.top=btn.style.top;
+  p.innerHTML=`<span class="lbl">Leads to</span>${d.tos.map(t=>`<a href="#area-${esc(t.to)}" ${xdata(t)}>${esc(areaName(t.to))} <small class="mono">${esc(t.to)}</small>${t.cond?' <i class="faint">conditional</i>':''}</a>`).join('')}`;
+  btn.after(p);btn.setAttribute('aria-expanded','true');AR.pop={p,btn};
+  const f=p.querySelector('a');if(f)f.focus({preventScroll:true});
+}
+function xPopClose(refocus){const P=AR.pop;if(!P)return;AR.pop=null;P.p.remove();P.btn.setAttribute('aria-expanded','false');if(refocus&&document.contains(P.btn))P.btn.focus({preventScroll:true})}
+document.addEventListener('click',e=>{if(AR.pop&&!e.target.closest('.xpop,[data-pop]'))xPopClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&AR.pop){e.stopPropagation();xPopClose(true)}},true);
+/* clicks on exit links: remember where we arrive, open choosers */
+function xClick(e,ov){
+  const b=e.target.closest('[data-pop]');if(b){e.preventDefault();if(AR.pop&&AR.pop.btn===b)xPopClose(true);else xPopOpen(b);return true}
+  const a=e.target.closest('a[data-to]');if(!a)return false;
+  AR.arrive={to:a.dataset.to,from:AR.cur,tp:a.dataset.tx!=null?[+a.dataset.tx,+a.dataset.ty]:null,t:Date.now(),ov};xPopClose();return true;
+}
+function xPulse(host,g,pt){
+  const s=document.createElement('span');s.className='xarr';s.setAttribute('aria-hidden','true');
+  s.style.left=clamp(pt[0]/g.tw*100,0,100)+'%';s.style.top=clamp(pt[1]/g.th*100,0,100)+'%';host.appendChild(s);setTimeout(()=>s.remove(),2600);return s;
+}
+function setShowX(v){AR.showX=v;store.set('rfg-exits',v);const m=$('#area-map');if(m)m.classList.toggle('noexits',!v);const i=$('#area-xt');if(i)i.checked=v;
+  const o=$('#xov');if(o){o.classList.toggle('noexits',!v);$('#xov-x').setAttribute('aria-pressed',String(v))}if(!v)xPopClose()}
+async function renderAreaMap(a,im,src){
+  const id=String(a.id),g=areaGeom(id,im),M=exitModel(id,g),box=$('#area-map');if(!box)return;
+  const marks=src?exitMarkers(M,g):'',dense=M.doors.length>16?' dense':'';
+  AR.ex={id,im,src,g,M,marks,dense};
+  box.classList.toggle('noexits',!AR.showX);
+  const imgEl=$('#area-img');imgEl.hidden=!im;
+  if(im)imgEl.innerHTML=src?`<div class="amf" id="area-fr" style="width:min(100%,${(im.w||320)*2}px,${(64*(im.w||4)/(im.h||3)).toFixed(2)}vh)"><img src="${src}" alt="Map of ${esc(a.name)}" width="${im.w||''}" height="${im.h||''}"><div class="xo${dense}">${marks}</div></div>`
+    :'<p class="empty" style="padding:12px;color:var(--band-muted)">Map image not available yet.</p>';
+  const bar=$('#area-bar');
+  bar.hidden=!(M.edges.length||marks||src);
+  bar.innerHTML=`${M.edges.length?`<div class="xrow"><span class="lbl">Exits</span>${M.edges.map(e=>`<a class="xb" href="#area-${esc(e.to)}" ${xdata(e)}><span aria-hidden="true">${XSIDES[e.side]}</span> ${esc(areaName(e.to))}<span class="sr">, ${e.side} edge${e.cond?', conditional':''}</span></a>`).join('')}</div>`:''}
+    <div class="xtools">${marks?`<label class="chk" for="area-xt"><input type="checkbox" id="area-xt"${AR.showX?' checked':''}> Show exits</label>`:''}${src?`<button type="button" class="btn" id="area-expand">Larger map</button>`:''}</div>`;
+  box.hidden=!(im||M.edges.length||M.doors.length);
+  // connected areas, grouped
+  const sec=$('#area-links'),seen=new Map(),add=(to,grp,o)=>{if(!seen.has(to))seen.set(to,{to,grp,...o});else if(!o.variant)seen.get(to).variant=false};
+  M.edges.forEach(e=>{add(e.to,'ex',{tp:e.tp,side:e.side});e.alts.forEach(t=>add(t,'ex',{variant:true,side:e.side}))});
+  M.doors.forEach(d=>{const h=d.npc?'person':d.hint;if(d.multi)d.tos.forEach(t=>add(t.to,'in',{tp:t.tp,hint:h}));else{add(d.to,'in',{tp:d.tp,hint:h});d.alts.forEach(t=>add(t,'in',{variant:true,hint:h}))}});
+  const all=[...seen.values()],names=new Map();all.forEach(x=>{const n=areaName(x.to);names.set(n,(names.get(n)||0)+1)});
+  const lk=x=>`<a href="#area-${esc(x.to)}" ${xdata(x)}>${x.side?`<span aria-hidden="true">${XSIDES[x.side]} </span>`:''}${esc(areaName(x.to))}</a>${names.get(areaName(x.to))>1?` <small class="mono faint">${esc(x.to)}</small>`:''}${x.variant?' <span class="faint">(story variant)</span>':''}${x.hint&&x.hint!=='door'?` <span class="faint">· ${esc(x.hint)}</span>`:''}`;
+  const grp=(k,l)=>{const xs=all.filter(x=>x.grp===k).sort((p,q)=>(p.variant-q.variant)||areaName(p.to).localeCompare(areaName(q.to))||(+p.to-+q.to));
+    return xs.length?`<div class="xgrp"><span class="lbl">${l}</span><div class="linkset">${xs.map(x=>`<span>${lk(x)}</span>`).join('')}</div></div>`:''};
+  sec.hidden=!all.length;
+  if(all.length)sec.innerHTML=`<h3>Connected areas <span class="cnt">${all.length}</span></h3>${grp('ex','Exits')}${grp('in','Inside and doors')}`;
+  // arrival after an exit click
+  const A=AR.arrive;if(!A||A.to!==id||Date.now()-A.t>8000)return;AR.arrive=null;
+  const img=$('#area-fr img');if(img)try{await img.decode()}catch(_){}
+  if(AR.cur!==id)return;
+  let pt=null;if(g&&g.doors){if(A.tp)pt=[A.tp[0]+.5,A.tp[1]+.5];else{const r=(DATA.links[id]||[]).find(l=>String(l.to)===A.from);if(r)pt=[(+r.x||0)+(+r.w||1)/2,(+r.y||0)+(+r.h||1)/2]}}
+  if(A.ov&&src){openXov(pt);return}
+  closeXov();
+  const fr=$('#area-fr'),pe=fr&&pt?xPulse(fr,g,pt):null,hh=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hh'))||0;
+  const r=box.getBoundingClientRect(),vh=innerHeight;let top=scrollY+r.top-hh-10;
+  if(r.height>vh-hh-20&&pe){const q=pe.getBoundingClientRect();top=scrollY+q.top-(vh+hh)/2}
+  window.scrollTo({top:Math.max(0,top)});
+}
+/* larger, pannable view of the area map with the same markers */
+function openXov(pt){
+  const ex=AR.ex;if(!ex||!ex.src||!ex.im)return;
+  const had=$('#xov');if(!had)AR.opener=document.activeElement;closeXov();
+  const a=IX.ar.get(ex.id),name=a?a.name:'Map '+ex.id,W=ex.im.w,H=ex.im.h;
+  const ov=document.createElement('div');ov.className='xov'+(AR.showX?'':' noexits');ov.id='xov';
+  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Larger map of '+name);
+  ov.innerHTML=`<div class="xov-h"><span class="xov-t">${esc(name)}</span>${ex.marks?`<button type="button" class="btn" id="xov-x" aria-pressed="${AR.showX}">Exits</button>`:'<span id="xov-x" hidden></span>'}<button type="button" class="btn" id="xov-close">Close</button></div>
+    <div class="vp" id="xvp" tabindex="0" aria-label="Map of ${esc(name)}. Drag to pan, scroll or pinch to zoom, arrow keys pan, plus and minus zoom, Escape closes.">
+    <div class="stage" id="xstage" style="width:${W}px;height:${H}px"><img src="${ex.src}" alt="" width="${W}" height="${H}" draggable="false"><div class="xo${ex.dense}">${ex.marks}</div></div>
+    <div class="zoom"><button type="button" class="btn" id="xz-in" aria-label="Zoom in">+</button><button type="button" class="btn" id="xz-out" aria-label="Zoom out">−</button><button type="button" class="btn" id="xz-fit" aria-label="Fit map" style="font-size:12px">fit</button><span class="zl" id="xz-lv"></span></div></div>`;
+  document.body.appendChild(ov);document.documentElement.classList.add('xlock');
+  panZoom($('#xvp'),$('#xstage'),W,H,{zin:$('#xz-in'),zout:$('#xz-out'),zfit:$('#xz-fit'),lv:$('#xz-lv')});
+  if(pt&&ex.g)xPulse($('#xstage'),ex.g,pt);
+  $('#xov-close').onclick=()=>closeXov(true);
+  if(ex.marks)$('#xov-x').onclick=()=>setShowX(!AR.showX);
+  ov.addEventListener('click',e=>xClick(e,true));
+  ov.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.preventDefault();closeXov(true);return}
+    if(e.key!=='Tab')return;const f=$$('button:not([hidden]),a[href],[tabindex="0"]',ov).filter(x=>x.offsetParent!==null||x===document.activeElement);if(!f.length)return;
+    const i=f.indexOf(document.activeElement);if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&i===f.length-1){e.preventDefault();f[0].focus()}});
+  $('#xvp').focus({preventScroll:true});
+}
+function closeXov(restore){
+  const ov=$('#xov');if(!ov)return;if(AR.pop&&ov.contains(AR.pop.p))xPopClose();ov.remove();document.documentElement.classList.remove('xlock');
+  if(restore){const o=AR.opener&&document.contains(AR.opener)?AR.opener:$('#area-expand');if(o)o.focus({preventScroll:true})}
 }
 
 const IGROUPS=[['tm','TMs and HMs'],['key','Key items'],['other','Other items']];
@@ -1453,17 +1675,20 @@ function renderStitchedSide(st){
   $('#map-side').onmouseover=e=>{const a=e.target.closest('a[data-a]');$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',!!a&&r.dataset.a===a.dataset.a))};
 }
 function setupPanZoom(st){
-  const vp=$('#vp'),stage=$('#stage');
-  const S={z:1,tx:0,ty:0,min:.05,max:8};MP.pz=S;
-  const apply=()=>{stage.style.transform=`translate(${S.tx}px,${S.ty}px) scale(${S.z})`;stage.style.setProperty('--iz',1/S.z);$('#zoom-lv').textContent=Math.round(S.z*100)+'%'};
-  const zoomAt=(f,px,py)=>{const nz=clamp(S.z*f,S.min,S.max);S.tx=px-(px-S.tx)*(nz/S.z);S.ty=py-(py-S.ty)*(nz/S.z);S.z=nz;apply()};
-  const fit=()=>{const w=vp.clientWidth,h=vp.clientHeight;S.z=Math.min(w/st.w,h/st.h)*.96;S.min=S.z*.5;S.max=Math.max(8,S.z*4);S.tx=(w-st.w*S.z)/2;S.ty=(h-st.h*S.z)/2;apply()};
-  fit();
+  const vp=$('#vp'),Z=panZoom(vp,$('#stage'),st.w,st.h,{zin:$('#zoom-in'),zout:$('#zoom-out'),zfit:$('#zoom-fit'),lv:$('#zoom-lv')}),S=Z.S,apply=Z.apply;MP.pz=S;
   if(MP.focus){const b=(st.areas||[]).find(x=>String(x.area)===MP.focus);MP.focus=null;
     if(b){const w=vp.clientWidth,h=vp.clientHeight;S.z=clamp(Math.min(w/b.w,h/b.h)*.8,S.min,S.max);S.tx=w/2-(b.x+b.w/2)*S.z;S.ty=h/2-(b.y+b.h/2)*S.z;apply();
       setTimeout(()=>$$('#st-boxes rect').forEach(r=>r.classList.toggle('hot',r.dataset.a===b.area)),0)}}
+}
+/* drag, wheel, pinch and keyboard pan/zoom of a stage (W x H px) inside a viewport */
+function panZoom(vp,stage,W,H,ui){
+  const S={z:1,tx:0,ty:0,min:.05,max:8};
+  const apply=()=>{stage.style.transform=`translate(${S.tx}px,${S.ty}px) scale(${S.z})`;stage.style.setProperty('--iz',1/S.z);if(ui.lv)ui.lv.textContent=Math.round(S.z*100)+'%'};
+  const zoomAt=(f,px,py)=>{const nz=clamp(S.z*f,S.min,S.max);S.tx=px-(px-S.tx)*(nz/S.z);S.ty=py-(py-S.ty)*(nz/S.z);S.z=nz;apply()};
+  const fit=()=>{const w=vp.clientWidth,h=vp.clientHeight;S.z=Math.min(w/W,h/H)*.96;S.min=S.z*.5;S.max=Math.max(8,S.z*4);S.tx=(w-W*S.z)/2;S.ty=(h-H*S.z)/2;apply()};
+  fit();
   const ctr=()=>[vp.clientWidth/2,vp.clientHeight/2];
-  $('#zoom-in').onclick=()=>zoomAt(1.4,...ctr());$('#zoom-out').onclick=()=>zoomAt(1/1.4,...ctr());$('#zoom-fit').onclick=fit;
+  ui.zin.onclick=()=>zoomAt(1.4,...ctr());ui.zout.onclick=()=>zoomAt(1/1.4,...ctr());ui.zfit.onclick=fit;
   vp.addEventListener('wheel',e=>{e.preventDefault();const r=vp.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*(e.deltaMode?0.05:0.0015)),e.clientX-r.left,e.clientY-r.top)},{passive:false});
   const P=new Map();let moved=0,last=null,captured=false;
   const mid=()=>{const v=[...P.values()];return [(v[0].x+v[1].x)/2,(v[0].y+v[1].y)/2,Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)]};
@@ -1478,6 +1703,7 @@ function setupPanZoom(st){
     if(k==='ArrowLeft')S.tx+=s;else if(k==='ArrowRight')S.tx-=s;else if(k==='ArrowUp')S.ty+=s;else if(k==='ArrowDown')S.ty-=s;
     else if(k==='+'||k==='=')return zoomAt(1.4,...ctr());else if(k==='-'||k==='_')return zoomAt(1/1.4,...ctr());else if(k==='0')return fit();else return;
     e.preventDefault();apply()});
+  return {S,apply,fit,zoomAt};
 }
 
 /* ---------- footer, boot ---------- */
