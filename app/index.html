@@ -103,7 +103,7 @@ main{padding-block:18px 40px}
 
 /* labels and sections */
 .lbl{font:600 12px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.sec{display:grid;gap:10px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.sec{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-top:14px;border-top:1px solid var(--line-soft)}
 .sec>h3{display:flex;align-items:baseline;gap:10px;font:600 12px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .sec>h3 .cnt{font-family:var(--f-mono);letter-spacing:0;color:var(--faint)}
 .h-title{font:800 clamp(30px,5vw,44px)/.95 var(--f-display);letter-spacing:.02em;text-transform:uppercase}
@@ -158,7 +158,7 @@ a.ty:hover{filter:brightness(1.08)}
 .row .tys{display:flex;gap:3px}
 .grp-h{position:sticky;top:0;z-index:1;background:var(--surface-2);padding:6px 10px;font:600 12px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
 .more{display:block;width:calc(100% - 20px);margin:10px}
-.detail-pane{min-width:0;display:grid;gap:18px}
+.detail-pane{min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
 .back{display:none;font-weight:600;text-decoration:none;color:var(--accent)}
 .spr{image-rendering:pixelated;flex:none;background:var(--surface-2);border-radius:2px;object-fit:contain}
 .spr.sm{width:32px;height:32px}
@@ -176,8 +176,8 @@ a.ty:hover{filter:brightness(1.08)}
 /* dossier head */
 .dhead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
 .dhead .meta{display:grid;gap:6px;min-width:0}
-.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden}
-.facts>div{background:var(--surface);padding:7px 10px;display:grid;gap:2px;min-width:0}
+.facts{display:flex;flex-wrap:wrap;gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden}
+.facts>div{flex:1 1 150px;background:var(--surface);padding:7px 10px;display:grid;gap:2px;min-width:0}
 .facts dt{font:600 11px/1.2 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .facts dd{margin:0;font-size:14px}
 .cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;align-items:start}
@@ -193,13 +193,13 @@ a.ty:hover{filter:brightness(1.08)}
 /* types view */
 .tv{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start}
 @media (max-width:900px){.tv{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:14px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}
 .panel-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 14px}
 .panel-h h2{font:800 24px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:4px}
-.tbtn{border:0;border-radius:2px;padding:8px 4px 7px;cursor:pointer;font:600 12px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;background:var(--c);color:var(--ci);opacity:.42;--c:var(--t-unk);--ci:var(--t-unk-i)}
-.tbtn:hover{opacity:.75}
-.tbtn[aria-pressed="true"]{opacity:1;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--fg)}
+.tbtn{--c:var(--t-unk);--ci:var(--t-unk-i);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:2px;padding:8px 4px 7px;cursor:pointer;font:600 12px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;background:var(--surface);color:var(--fg)}
+.tbtn:hover{border-color:var(--c)}
+.tbtn[aria-pressed="true"]{background:var(--c);color:var(--ci);border-color:var(--c);box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--fg)}
 .pick-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:28px}
 .pick-line .big{font:800 22px/1 var(--f-display);letter-spacing:.05em;text-transform:uppercase}
 .ab-list{display:grid;gap:8px}
@@ -303,13 +303,14 @@ table.mx tr.top td.sum b{color:var(--m4-bg)}
 .mapgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);gap:18px;align-items:start}
 @media (max-width:860px){.mapgrid{grid-template-columns:minmax(0,1fr)}}
 .regwrap{overflow-x:auto;background:var(--map-bg);border:1px solid var(--line);border-radius:var(--r);padding:8px}
-.regwrap svg{display:block;min-width:520px;width:100%;height:auto}
+.regwrap svg{display:block;width:100%;max-width:560px;height:auto;margin-inline:auto}
+.reg-cap{font:600 13px/1.2 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--band-fg);padding:2px 4px 8px;min-height:24px}
 .reg-cell{fill:var(--surface-2);opacity:.12}
 .reg-pt{fill:var(--box-line);opacity:.55;cursor:pointer;stroke:var(--map-bg);stroke-width:1}
 .reg-pt.has{fill:var(--accent);opacity:1}
 .reg-pt:hover,.reg-pt:focus{opacity:1;stroke:var(--box-line);stroke-width:2;outline:none}
-.reg-pt.sel{stroke:var(--box-line);stroke-width:3;opacity:1}
-.reg-lbl{fill:var(--box-line);font:600 10px var(--f-body);letter-spacing:.06em;text-transform:uppercase;paint-order:stroke;stroke:var(--map-bg);stroke-width:3px;pointer-events:none}
+.reg-pt.same{stroke:var(--box-line);stroke-width:1.5;stroke-dasharray:3 2;opacity:1}
+.reg-pt.sel{stroke:var(--box-line);stroke-width:3;stroke-dasharray:none;opacity:1}
 .vp{position:relative;height:min(68vh,680px);min-height:340px;background:var(--map-bg);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .vp.drag{cursor:grabbing}
 .stage{position:absolute;left:0;top:0;transform-origin:0 0;--iz:1}
@@ -519,15 +520,17 @@ const IX={pk:new Map(),mv:new Map(),tm:new Map(),ab:new Map(),ar:new Map(),kids:
 function index(name,d){
   if(!d) return;
   if(name==='types'){IX.types=d.types||Object.keys(d.chart||{});IX.chart=d.chart||{}}
-  else if(name==='pokemon') d.forEach(p=>IX.pk.set(p.id,p));
+  else if(name==='pokemon'){d.forEach(p=>IX.pk.set(p.id,p));aliasPk()}
   else if(name==='moves') d.forEach(m=>{IX.mv.set(m.id,m);if(m.tm)IX.tm.set(slug(m.tm),m.id)});
   else if(name==='abilities') d.forEach(a=>{IX.ab.set(a.id,a);IX.ab.set(slug(a.name),a)});
   else if(name==='areas'){d.forEach(a=>IX.ar.set(String(a.id),a));d.forEach(a=>{if(a.parent!=null&&IX.ar.has(String(a.parent)))push(IX.kids,String(a.parent),a)})}
   else if(name==='trainers') d.forEach(t=>{IX.tr.set(t.id,t);(t.team||[]).forEach(m=>push(IX.trMon,m.pokemon,t));(t.locations||[]).forEach(l=>push(IX.trArea,String(l.area),t))});
   else if(name==='items') d.forEach(i=>{IX.it.set(i.id,i);IX.it.set(slug(i.name),i);if(i.move&&/^(tm|hm|tr)\d/i.test(i.id))IX.tm.set(slug(i.id),i.move);(i.locations||[]).forEach(l=>push(IX.itArea,String(l.area),{item:i,loc:l}))});
   else if(name==='sprites') IX.spr=d;
-  else if(name==='meta'){$('#ver').textContent=(d.version?'v'+d.version:'');footer()}
+  else if(name==='meta'){aliasPk();$('#ver').textContent=(d.version?'v'+d.version:'');footer()}
 }
+const abName=x=>{const a=x&&IX.ab.get(slug(x));return a?a.name:(x||'')};
+function aliasPk(){const al=(DATA.meta||{}).pokemonAliases;if(!al||!DATA.pokemon)return;for(const k in al)if(!IX.pk.has(k)&&IX.pk.has(al[k]))IX.pk.set(k,IX.pk.get(al[k]))}
 const areaName=id=>{const a=IX.ar.get(String(id));return a?a.name:'Map '+id};
 const monName=id=>{const p=IX.pk.get(id);return p?p.name+(p.form?' ('+p.form+')':''):pretty(id)};
 const moveOf=id=>IX.mv.get(id)||{id,name:pretty(id),type:null,category:null,power:null,accuracy:null,pp:null};
@@ -613,7 +616,7 @@ function setCurrent(list,id){$$('[aria-current]',list).forEach(e=>e.removeAttrib
 
 /* ---------- sprites ---------- */
 let sprObs=null;
-function sprSrc(id){const p=IX.pk.get(id);return (p&&p.sprite)||(IX.spr&&IX.spr[id])||''}
+function sprSrc(id){const p=IX.pk.get(id);return (p&&p.sprite)||(IX.spr&&(IX.spr[p?p.id:id]||IX.spr[id]))||''}
 function sprImg(id,size){return `<img class="spr ${size}" data-sid="${esc(id)}" alt="" decoding="async">`}
 function hydrate(root){
   if(!sprObs) sprObs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const s=sprSrc(e.target.dataset.sid);if(s){e.target.src=s;sprObs.unobserve(e.target)}}}),{rootMargin:'300px'});
@@ -668,7 +671,7 @@ function renderTypes(fromDef){
     $('#def-out').innerHTML=`<div class="pick-line"><span class="big">${D.map(esc).join(' / ')}</span><span class="note">takes from each attacking type</span></div>`+wkHTML(D,{neutral:true});
     // abilities
     const mons=pokemonWithTyping(D);
-    const holders={};mons.forEach(p=>[...(p.abilities||[]),p.hiddenAbility].filter(Boolean).forEach(a=>{(holders[a]=holders[a]||[]).push(p)}));
+    const holders={};mons.forEach(p=>[...new Set([...(p.abilities||[]),p.hiddenAbility].filter(Boolean).map(abName))].forEach(a=>{(holders[a]=holders[a]||[]).push(p)}));
     const rows=Object.keys(ABIL).map(ab=>({ab,ch:abilityChanges(D,ab),who:holders[ab]||[],note:ABIL[ab].note})).filter(r=>r.ch.length||(r.who.length&&r.note));
     const has=rows.filter(r=>r.who.length),other=rows.filter(r=>!r.who.length&&r.ch.length);
     const row=r=>`<div class="ab-item"><b>${esc(r.ab)}</b><span class="chg">${r.ch.map(([a,m,n])=>`<span>${esc(a)} ${fmtX(m)}→<b>${fmtX(n)}</b></span>`).join('')}${r.note?`<span style="font-family:var(--f-body)">${esc(r.note)}</span>`:''}</span>${r.who.length?`<span class="who">${r.who.slice(0,8).map(p=>`<a href="#dex-${esc(p.id)}">${esc(monName(p.id))}</a>`).join(', ')}${r.who.length>8?` +${r.who.length-8}`:''}</span>`:''}</div>`;
@@ -709,7 +712,8 @@ async function showDex(id,changed){
   if(!DX.built){
     DX.built=true;
     $('#dex-type').insertAdjacentHTML('beforeend',IX.types.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join(''));
-    const abs=[...new Set(pk.flatMap(p=>[...(p.abilities||[]),p.hiddenAbility].filter(Boolean)))].sort();
+    const abs=[...new Set(pk.flatMap(p=>[...(p.abilities||[]),p.hiddenAbility].filter(Boolean).map(abName)))].sort();
+    DX.sorted=pk.map((p,i)=>[p,i]).sort((a,b)=>((a[0].dex??9999)-(b[0].dex??9999))||(!!a[0].form-!!b[0].form)||a[1]-b[1]).map(x=>x[0]);
     $('#dex-ability').insertAdjacentHTML('beforeend',abs.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join(''));
     let raf=0;const re=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(renderDexList)};
     ['dex-q','dex-type','dex-ability'].forEach(i=>$('#'+i).addEventListener('input',re));
@@ -727,9 +731,9 @@ async function showDex(id,changed){
 function renderDexList(){
   const q=$('#dex-q').value.trim().toLowerCase().replace(/^#/,''),ty=$('#dex-type').value,ab=$('#dex-ability').value;
   const num=/^\d+$/.test(q)?+q:null;
-  DX.list=DATA.pokemon.filter(p=>{
+  DX.list=DX.sorted.filter(p=>{
     if(ty&&!(p.types||[]).includes(ty))return false;
-    if(ab&&!(p.abilities||[]).includes(ab)&&p.hiddenAbility!==ab)return false;
+    if(ab&&!(p.abilities||[]).some(a=>abName(a)===ab)&&abName(p.hiddenAbility)!==ab)return false;
     if(!q)return true;
     if(num!=null)return p.dex===num;
     return (p.name+' '+(p.form||'')+' '+p.id).toLowerCase().includes(q);
@@ -742,7 +746,7 @@ function renderDexList(){
 const SL={hp:'HP',atk:'Atk',def:'Def',spa:'Sp. Atk',spd:'Sp. Def',spe:'Speed'}, SK=['hp','atk','def','spa','spd','spe'], SS={hp:'HP',atk:'Atk',def:'Def',spa:'SpA',spd:'SpD',spe:'Spe'};
 function abilityHTML(name,hidden){
   const a=IX.ab.get(slug(name));
-  return `<div class="ab-item"><b>${esc(name)}${hidden?' <span class="lbl" style="font-size:10px">hidden</span>':''}</b><span>${a&&a.description?esc(a.description):'<span class="empty">No description</span>'}</span></div>`;
+  return `<div class="ab-item"><b>${esc(a?a.name:name)}${hidden?' <span class="lbl" style="font-size:10px">hidden</span>':''}</b><span>${a&&a.description?esc(a.description):'<span class="empty">No description</span>'}</span></div>`;
 }
 function evoChain(p){
   const parentOf=id=>{const x=IX.pk.get(id);if(!x)return null;let f=x.evolvesFrom;if(f&&typeof f==='object')f=f.id||f.from||f.pokemon;
@@ -779,7 +783,7 @@ function renderMoves(){
 function renderDex(p){
   const st=p.stats||{},tot=SK.reduce((s,k)=>s+(st[k]||0),0);
   const abil=[...(p.abilities||[])],hid=p.hiddenAbility;
-  const abNotes=[...abil,hid].filter(a=>a&&ABIL[a]).map(a=>{const ch=abilityChanges(p.types||[],a);
+  const abNotes=[...new Set([...abil,hid].filter(Boolean).map(abName))].filter(a=>ABIL[a]).map(a=>{const ch=abilityChanges(p.types||[],a);
     return `<p class="note"><b>With ${esc(a)}:</b> ${ch.length?ch.map(([t,m,n])=>`${esc(t)} ${fmtX(m)}→${fmtX(n)}`).join(', '):''}${ABIL[a].note?(ch.length?'; ':'')+esc(ABIL[a].note):''}</p>`}).join('');
   const ev=Object.entries(p.evYield||{}).filter(([,v])=>v).map(([k,v])=>`${v} ${SL[k]||k}`).join(', ');
   const fact=(k,v)=>v!=null&&v!==''?`<div><dt>${k}</dt><dd>${v}</dd></div>`:'';
@@ -862,17 +866,17 @@ function renderBatList(){
 const NATURE={Lonely:['atk','def'],Brave:['atk','spe'],Adamant:['atk','spa'],Naughty:['atk','spd'],Bold:['def','atk'],Relaxed:['def','spe'],Impish:['def','spa'],Lax:['def','spd'],Timid:['spe','atk'],Hasty:['spe','def'],Jolly:['spe','spa'],Naive:['spe','spd'],Modest:['spa','atk'],Mild:['spa','def'],Quiet:['spa','spe'],Rash:['spa','spd'],Calm:['spd','atk'],Gentle:['spd','def'],Sassy:['spd','spe'],Careful:['spd','spa']};
 function monCard(m){
   const p=IX.pk.get(m.pokemon)||{},nat=NATURE[m.nature]||[];
-  const ab=m.ability&&IX.ab.get(slug(m.ability));
+  const ab=m.ability&&IX.ab.get(slug(m.ability));const abn=ab?ab.name:m.ability;
   const row=(lbl,o)=>o?`<tr><td>${lbl}</td>${SK.map(k=>`<td class="${nat[0]===k?'up':nat[1]===k?'dn':''}">${o[k]??'–'}</td>`).join('')}</tr>`:'';
   return `<div class="mon"><div class="mon-h">${sprImg(m.pokemon,'md')}<div><a class="nm" href="#dex-${esc(m.pokemon)}">${esc(monName(m.pokemon))}</a><span class="lv">Lv ${m.level??'?'}</span>${m.shiny?' <span class="shiny">★ shiny</span>':''}<div class="chips" style="margin-top:5px">${tchips(p.types)}</div></div></div>
-    <dl class="kv"><dt>Item</dt><dd>${esc(m.item||'–')}</dd><dt>Ability</dt><dd${ab&&ab.description?` title="${esc(ab.description)}"`:''}>${esc(m.ability||'–')}</dd><dt>Nature</dt><dd>${esc(m.nature||'–')}${nat.length?` <span class="note mono">+${SS[nat[0]]} −${SS[nat[1]]}</span>`:''}</dd>${m.gender?`<dt>Gender</dt><dd>${esc(m.gender)}</dd>`:''}</dl>
+    <dl class="kv"><dt>Item</dt><dd>${esc(m.item||'–')}</dd><dt>Ability</dt><dd${ab&&ab.description?` title="${esc(ab.description)}"`:''}>${esc(abn||'–')}</dd><dt>Nature</dt><dd>${esc(m.nature||'–')}${nat.length?` <span class="note mono">+${SS[nat[0]]} −${SS[nat[1]]}</span>`:''}</dd>${m.gender?`<dt>Gender</dt><dd>${esc(m.gender)}</dd>`:''}</dl>
     <ul class="mvl">${(m.moves||[]).map(id=>{const x=moveOf(id);return `<li>${tchip(x.type,1)||'<span></span>'}<span>${esc(x.name)}</span><span class="cat cat-${slug(x.category)}">${esc((x.category||'').slice(0,4))}</span><span class="p">${x.power??'–'}</span></li>`}).join('')||'<li class="empty">No moves listed</li>'}</ul>
     ${m.evs||m.ivs||m.stats?`<table class="s6"><thead><tr><th></th>${SK.map(k=>`<th>${SS[k]}</th>`).join('')}</tr></thead><tbody>${row('Base',p.stats)}${row('EV',m.evs)}${row('IV',m.ivs)}${row('Stat',m.stats)}</tbody></table>`:''}</div>`;
 }
 function teamMatrix(team){
   if(!team.length||!IX.types.length)return '';
   const mem=team.map(m=>({m,types:(IX.pk.get(m.pokemon)||{}).types||[]}));
-  const rows=IX.types.map(a=>{const ms=mem.map(x=>x.types.length?abMult(eff(a,x.types),a,x.m.ability):1);
+  const rows=IX.types.map(a=>{const ms=mem.map(x=>x.types.length?abMult(eff(a,x.types),a,abName(x.m.ability)):1);
     return {a,ms,se:ms.filter(v=>v>1).length,res:ms.filter(v=>v<1).length,sum:ms.reduce((s,v)=>s+v,0)}}).sort((x,y)=>y.se-x.se||x.res-y.res||y.sum-x.sum);
   const best=rows.filter(r=>r.se>0).slice(0,3);
   return `<p class="note">${best.length?`Best attacking types: ${best.map(r=>`<b>${esc(r.a)}</b> hits ${r.se} of ${team.length}`).join(', ')}.`:'No attacking type hits any member super-effectively.'} Abilities like Levitate are counted.</p>
@@ -885,7 +889,7 @@ function renderBattle(t){
     <div style="display:grid;gap:8px"><div class="chips" style="align-items:center;gap:8px">${kindBadge(t)}<span class="h-sub">${esc(t.class||'')}${t.battle?' · '+esc(t.battle)+' battle':''}</span></div>
     <h1 class="h-title">${esc(t.name||t.class)}</h1>
     <label class="chk" for="beat-d-${esc(t.id)}"><input type="checkbox" id="beat-d-${esc(t.id)}" data-beat="${esc(t.id)}"${b?' checked':''}> Beaten</label></div>
-    <div class="sec"><h3>Where</h3><div class="loc-list">${(t.locations||[]).map(l=>`<div><a href="#area-${esc(l.area)}">${esc(areaName(l.area))}</a>${l.note?` <span class="note">${esc(l.note)}</span>`:''}${l.dialogue?`<blockquote class="dlg" style="margin-top:6px">${esc(l.dialogue)}</blockquote>`:''}</div>`).join('')||'<span class="empty">Unknown</span>'}</div>
+    <div class="sec"><h3>Where</h3><div class="loc-list">${(t.locations||[]).map(l=>`<div><a href="#area-${esc(l.area)}">${esc(areaName(l.area))}</a>${l.note?` <span class="note">${esc(l.note)}</span>`:''}${(l.dialogues&&l.dialogues.length)?l.dialogues.map(d=>`<blockquote class="dlg" style="margin-top:6px">${d.when?`<span class="lbl" style="display:block;font-style:normal;margin-bottom:3px">${esc(d.when)}</span>`:''}${esc(d.text)}</blockquote>`).join(''):l.dialogue?`<blockquote class="dlg" style="margin-top:6px">${esc(l.dialogue)}</blockquote>`:''}</div>`).join('')||'<span class="empty">Unknown</span>'}</div>
     ${(t.items||[]).length?`<p class="note"><b>Items:</b> ${esc(t.items.join(', '))}</p>`:''}</div>
     <div class="sec"><h3>Team <span class="cnt">${(t.team||[]).length}</span></h3><div class="team">${(t.team||[]).map(monCard).join('')}</div></div>
     <div class="sec"><h3>Team weaknesses</h3>${teamMatrix(t.team||[])}</div>`;
@@ -958,17 +962,19 @@ function renderArea(a){
   const id=String(a.id),par=a.parent!=null?IX.ar.get(String(a.parent)):null,kids=IX.kids.get(id)||[];
   const crumbs=[];let x=par,g=0;while(x&&g++<6){crumbs.unshift(x);x=x.parent!=null?IX.ar.get(String(x.parent)):null}
   $('#area-detail').innerHTML=`<a class="back" href="#areas">← All areas</a>
-    <div style="display:grid;gap:8px"><div class="crumbs">${esc(a.region||'')}${crumbs.map(c=>` › <a href="#area-${esc(c.id)}">${esc(c.name)}</a>`).join('')}</div>
+    <div style="display:grid;gap:8px"><div class="crumbs">${a.region&&!crumbs.some(c=>c.name===a.region)?esc(a.region)+' ›':''}${crumbs.map((c,i)=>`${i?' › ':''}<a href="#area-${esc(c.id)}">${esc(c.name)}</a>`).join('')}</div>
     <h1 class="h-title">${esc(a.name)}</h1>
     <div class="chips" style="gap:8px;align-items:center">${a.fieldEffect?`<span class="field" title="Field effect">${esc(a.fieldEffect)}</span>`:''}<span class="h-sub mono">map ${esc(id)}</span><span class="h-sub">${a.outdoor?'Outdoor':'Indoor'}${a.weather?' · Weather: '+esc(a.weather):''}</span><span class="h-sub" id="area-onmap"></span></div></div>
-    ${a.image?`<div class="mapimg" id="area-img"><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div>`:''}
+    <div class="mapimg" id="area-img" hidden><p class="loading" style="color:var(--band-muted)">Loading map image…</p></div>
     ${kids.length?`<div class="sec"><h3>Inside <span class="cnt">${kids.length}</span></h3><div class="linkset">${kids.sort((p,q)=>p.name.localeCompare(q.name)).map(k=>`<a href="#area-${esc(k.id)}">${esc(k.name)}</a>`).join('')}</div></div>`:''}
     <div class="sec"><h3>Wild Pokémon</h3>${(a.encounters||[]).length?encTables(a.encounters):'<p class="empty">No wild encounters here.</p>'}</div>
     <div class="sec" id="area-trainers"><h3>Trainers here</h3><p class="loading" style="padding:0">Loading trainers…</p></div>
     <div class="sec" id="area-items" hidden></div>`;
   hydrate($('#area-detail'));
-  if(a.image){loadBundle(a.image.bundle,SRC.areas).then(b=>{if(AR.cur!==id)return;const el=$('#area-img');if(!el)return;const src=b&&b[a.image.key];
-    el.innerHTML=src?`<img src="${src}" alt="Map of ${esc(a.name)}" width="${a.image.w||''}" height="${a.image.h||''}">`:'<p class="empty" style="padding:12px">Map image not available yet.</p>'})}
+  (async()=>{let im=a.image,src0=SRC.areas;if(!im){const ai=await load('area_images');im=ai&&ai[id];src0=SRC.area_images}
+    if(!im||AR.cur!==id)return;const el=$('#area-img');if(!el)return;el.hidden=false;
+    const b=await loadBundle(im.bundle,src0);if(AR.cur!==id)return;const src=b&&b[im.key];
+    el.innerHTML=src?`<img src="${src}" alt="Map of ${esc(a.name)}" width="${im.w||''}" height="${im.h||''}">`:'<p class="empty" style="padding:12px;color:var(--band-muted)">Map image not available yet.</p>'})();
   load('trainers').then(()=>{if(AR.cur!==id)return;
     const ids=new Set([...(a.trainers||[]),...(IX.trArea.get(id)||[]).map(t=>t.id)]);
     const ts=[...ids].map(i=>IX.tr.get(i)||{id:i,name:pretty(i),team:[]}).sort(byStory);
@@ -1004,16 +1010,19 @@ async function showRegion(rm){
   cells.forEach((ps,k)=>{const [x,y]=k.split(',').map(Number),has=ps.some(p=>(p.areas||[]).length);
     const lab=[...new Set(ps.map(p=>[p.name,p.sub].filter(Boolean).join(' · ')))].join('; ');
     svg+=`<rect class="reg-pt${has?' has':''}${MP.sel===k?' sel':''}" data-k="${k}" x="${x*C+3}" y="${y*C+3}" width="${C-6}" height="${C-6}" rx="2" tabindex="0" role="button" aria-label="${esc(lab)}"><title>${esc(lab)}</title></rect>`});
-  const names=new Map();rm.points.forEach(p=>{if(!names.has(p.name))names.set(p.name,[]);names.get(p.name).push(p)});
-  names.forEach((ps,n)=>{const x=ps.reduce((s,p)=>s+p.x,0)/ps.length,y=Math.min(...ps.map(p=>p.y));svg+=`<text class="reg-lbl" x="${x*C+C/2}" y="${y*C-3}" text-anchor="middle">${esc(n)}</text>`});
   svg+='</svg>';
-  $('#map-main').innerHTML=`<div class="regwrap">${svg}</div><p class="note" style="margin-top:8px">Filled squares link to maps in this guide. Pick a square, or choose a stitched map above to see layers.</p>`;
-  const pick=k=>{MP.sel=k;$$('.reg-pt').forEach(r=>r.classList.toggle('sel',r.dataset.k===k));renderRegionSide(rm,cells,k)};
+  $('#map-main').innerHTML=`<div class="regwrap"><div class="reg-cap" id="reg-cap" aria-live="polite"></div>${svg}</div><p class="note" style="margin-top:8px">Filled squares link to maps in this guide. Pick a square, or choose a stitched map above to see layers.</p>`;
+  const capOf=k=>[...new Set((cells.get(k)||[]).map(p=>[p.name,p.sub].filter(Boolean).join(' · ')))].join('; ');
+  const pick=k=>{MP.sel=k;const nm=new Set((cells.get(k)||[]).map(p=>p.name));
+    $$('.reg-pt').forEach(r=>{r.classList.toggle('sel',r.dataset.k===k);r.classList.toggle('same',r.dataset.k!==k&&(cells.get(r.dataset.k)||[]).some(p=>nm.has(p.name)))});
+    $('#reg-cap').textContent=capOf(k);renderRegionSide(rm,cells,k)};
   const svgEl=$('#map-main svg');
+  svgEl.addEventListener('pointerover',e=>{const r=e.target.closest('.reg-pt');$('#reg-cap').textContent=capOf(r?r.dataset.k:MP.sel)});
+  svgEl.addEventListener('pointerleave',()=>{$('#reg-cap').textContent=capOf(MP.sel)});
   svgEl.addEventListener('click',e=>{const r=e.target.closest('.reg-pt');if(r)pick(r.dataset.k)});
   svgEl.addEventListener('keydown',e=>{const r=e.target.closest('.reg-pt');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();pick(r.dataset.k)}});
   if(!MP.sel||!cells.has(MP.sel))MP.sel=[...cells.keys()].find(k=>cells.get(k).some(p=>(p.areas||[]).length))||[...cells.keys()][0];
-  pick(MP.sel);
+  MP.pick=pick;pick(MP.sel);
 }
 function renderRegionSide(rm,cells,k){
   const ps=cells.get(k)||[];
@@ -1024,7 +1033,7 @@ function renderRegionSide(rm,cells,k){
     ${(rm.stitched||[]).length?`<div class="panel"><span class="lbl">Stitched maps</span><ul class="mlist">${rm.stitched.map(s=>`<li><a href="#map-${esc(s.id)}">${esc(s.name)}</a><span class="mono">${(s.areas||[]).length} maps</span></li>`).join('')}</ul></div>`:''}
     <div class="panel"><span class="lbl">Wards and places</span><div class="linkset">${wards.map(w=>`<a href="#map" data-ward="${esc(w)}">${esc(w)}</a>`).join('')}</div></div>`;
   $('#map-side').onclick=e=>{const a=e.target.closest('a[data-ward]');if(!a)return;e.preventDefault();const p=rm.points.find(p=>p.name===a.dataset.ward&&(p.areas||[]).length)||rm.points.find(p=>p.name===a.dataset.ward);
-    const kk=p.x+','+p.y;MP.sel=kk;$$('.reg-pt').forEach(r=>r.classList.toggle('sel',r.dataset.k===kk));renderRegionSide(rm,cells,kk);const r=$(`.reg-pt[data-k="${kk}"]`);if(r)r.focus()};
+    const kk=p.x+','+p.y;MP.pick(kk);const r=$(`.reg-pt[data-k="${kk}"]`);if(r)r.focus()};
 }
 async function showStitched(st){
   MP.st=st;
